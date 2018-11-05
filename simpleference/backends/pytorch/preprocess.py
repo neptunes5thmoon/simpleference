@@ -11,5 +11,5 @@ def cast(data, dtype='float32'):
     return data.astype(dtype, copy=False)
 
 
-def preprocess(data):
-    return cast(normalize(data))
+def preprocess(data, mean=None, std=None):
+    return normalize(cast(data), mean=mean, std=std)

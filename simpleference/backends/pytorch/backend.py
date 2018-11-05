@@ -10,6 +10,7 @@ class PyTorchPredict(object):
     def __init__(self, model_path, crop=None, gpu=0):
         assert os.path.exists(model_path), model_path
         self.model = torch.load(model_path, pickle_module=dill)
+        self.model.eval()
         self.gpu = gpu
         self.model.cuda(self.gpu)
         # validate cropping
@@ -45,7 +46,7 @@ class PyTorchPredict(object):
             if isinstance(predicted_on_gpu, tuple):
                 predicted_on_gpu = predicted_on_gpu[0]
             # 3. Transfer the results to the CPU
-            out = predicted_on_gpu.cpu().data.numpy().squeeze()
+            out = predicted_on_gpu.cpu().numpy().squeeze()
         if self.crop is not None:
             out = self.apply_crop(out)
         return out
@@ -57,6 +58,7 @@ class InfernoPredict(PyTorchPredict):
         assert os.path.exists(model_path), model_path
         trainer = Trainer().load(from_directory=model_path, best=use_best)
         self.model = trainer.model.cuda(gpu)
+        self.model.eval()
         self.gpu = gpu
         # validate cropping
         if crop is not None:
