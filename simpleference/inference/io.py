@@ -1,4 +1,5 @@
 # try to import z5py
+import z5py
 try:
     import z5py
     WITH_Z5PY = True
@@ -24,41 +25,56 @@ except ImportError:
 class IoBase(object):
     """
     Base class for I/O with h5 and n5
+
+    Arguments:
+        path (str): path to h5 or n5 file
+        key (str or list[str]): key or list of keys to datasets in file
+        io_module (io python module): needs to follow h5py syntax.
+            either z5py or h5py
+        channel_orders (list[slice]): mapping of channels to output datasets (default: None)
     """
     def __init__(self, path, keys, io_module, channel_order=None):
-        assert isinstance(keys, (tuple, list)), type(keys)
-        assert len(keys) in (1, 2), str(len(keys))
+        assert isinstance(keys, (tuple, list, str)), type(keys)
         self.path = path
-        self.keys = keys
+        self.keys = keys if isinstance(keys, (list, tuple)) else [keys]
         self.ff = io_module.File(self.path)
         assert all(kk in self.ff for kk in self.keys), "%s, %s" % (self.path, self.keys)
         self.datasets = [self.ff[kk] for kk in self.keys]
+
+        # TODO validate
         # we just assume that everything has the same shape...
         self._shape = self.datasets[0].shape
-        if channel_order is None:
-            self.channel_order = list(range(len(self.keys)))
-        else:
+
+        # validate non-trivial channel orders
+        if channel_order is not None:
+            assert all(isinstance(cho, slice) for cho in channel_order)
+            assert len(channel_order) == len(self.datasets)
+            for ds, ch in zip(self.datasets, channel_order):
+                n_chan = ch.stop - ch.start
+                if ds.ndim == 4:
+                    assert n_chan == ds.shape[0]
+                elif ds.ndim == 3:
+                    assert n_chan == 1
+                else:
+                    raise RuntimeError("Invalid dataset dimensionality")
             self.channel_order = channel_order
-        assert all(isinstance(ch, (int, list)) for ch in self.channel_order)
+        else:
+            assert len(self.datasets) == 1, "Need channel order if given more than one dataset"
+            self.channel_order = None
 
     def read(self, bounding_box):
         assert len(self.datasets) == 1
         return self.datasets[0][bounding_box]
 
     def write(self, out, out_bb):
-
-        for ds, ch in zip(self.datasets, self.channel_order):
-            if isinstance(ch, list):
-                assert out.ndim == 4
-                # FIXME
-                # z5py can't be called with a list as slicing index, hence this does not work.
-                # this means, that we can only assign all channels to a single outputfile for now.
-                # the best way to fix this would be to implement indexing by list in z5py
-                # ds[(slice(None),) + out_bb] = out[ch]
-                ds[(slice(None),) + out_bb] = out
-            else:
-                assert out[ch].ndim == 3
-                ds[out_bb] = out[ch]
+        if self.channel_order is None:
+            self.datasets[0][out_bb] = out
+        else:
+            for ds, ch in zip(self.datasets, self.channel_order):
+                if ds.ndim == 3:
+                    ds[out_bb] = out[ch][0]
+                else:
+                    ds[(slice(None),) + out_bb] = out[ch]
 
     @property
     def shape(self):
