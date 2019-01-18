@@ -20,6 +20,7 @@ def make_prediction_blocks(full_shape, output_shape, mask_file, output_file,
     assert os.path.exists(mask_file), mask_file
     with h5py.File(mask_file) as f:
         mask = f[mask_key][:]
+        print(mask.shape)
         print(np.sum(mask))
 
     if downscale_factor is None:
@@ -70,6 +71,7 @@ def make_prediction_blocks(full_shape, output_shape, mask_file, output_file,
 
     n_blocks_total = np.prod([len(range(0, fs, output_s))
                               for fs, output_s in zip(full_shape, output_shape)])
+    print("Number of blocks to predict", len(prediction_blocks))
     print("Percentage of blocks that will be predicted", len(prediction_blocks) / n_blocks_total)
 
     return prediction_mask

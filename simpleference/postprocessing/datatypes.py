@@ -15,7 +15,6 @@ def clip_float_to_uint8(input_, output_bounding_box, float_range=(0., 1.), safe_
     Returns:
         np.array: Postprocessed output, dtype is uint8
     """
-    print(list(output_bounding_box[k].start for k in range(len(output_bounding_box))))
     if safe_scale:
         mult = np.floor(255./(float_range[1]-float_range[0]))
     else:

@@ -7,19 +7,37 @@ from random import shuffle
 import numpy as np
 
 
+def _offset_list(shape, output_shape):
+    in_list = []
+    for z in range(0, shape[0], output_shape[0]):
+        for y in range(0, shape[1], output_shape[1]):
+            for x in range(0, shape[2], output_shape[2]):
+                in_list.append([z, y, x])
+    return in_list
+
+
+# NOTE this will not cover the whole volume
+def _offset_list_with_shift(shape, output_shape, shift):
+    in_list = []
+    for z in range(0, shape[0], output_shape[0]):
+        for y in range(0, shape[1], output_shape[1]):
+            for x in range(0, shape[2], output_shape[2]):
+                in_list.append([min(z + shift[0], shape[0]),
+                                min(y + shift[1], shape[1]),
+                                min(x + shift[2], shape[2])])
+    return in_list
+
+
 # this returns the offsets for the given output blocks.
 # blocks are padded on the fly during inference if necessary
 def get_offset_lists(shape,
                      gpu_list,
                      save_folder,
                      output_shape,
-                     randomize=False):
-    in_list = []
-    for z in range(0, shape[0], output_shape[0]):
-        for y in range(0, shape[1], output_shape[1]):
-            for x in range(0, shape[2], output_shape[2]):
-                in_list.append([z, y, x])
-
+                     randomize=False,
+                     shift=None):
+    in_list = _offset_list(shape, output_shape) if shift is None else\
+            _offset_list_with_shift(shape, output_shape, shift)
     if randomize:
         shuffle(in_list)
 
