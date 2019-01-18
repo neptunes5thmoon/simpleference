@@ -145,6 +145,7 @@ def run_inference(prediction,
 
     @dask.delayed
     def load_offset(offset):
+        print("Start predicting block at", offset)
         return load_input(io_in, offset, context, output_shape,
                           padding_mode=padding_mode)
 
@@ -171,6 +172,7 @@ def run_inference(prediction,
 
     @dask.delayed
     def write_output(output, output_bounding_box):
+        print("Write output of shape", output.shape ,"to", output_bounding_box)
         io_out.write(output, output_bounding_box)
         return 1
 

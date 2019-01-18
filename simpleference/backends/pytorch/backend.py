@@ -42,7 +42,6 @@ class PyTorchPredict(object):
         with self.lock, torch.no_grad():
             # 1. Transfer the data to the GPU
             torch_data = torch.from_numpy(input_data[None, None]).cuda(self.gpu)
-            print('predicting a block!')
             # 2. Run the model
             predicted_on_gpu = self.model(torch_data)
             if isinstance(predicted_on_gpu, tuple):

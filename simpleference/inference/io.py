@@ -68,7 +68,12 @@ class IoBase(object):
 
     def write(self, out, out_bb):
         if self.channel_order is None:
-            self.datasets[0][out_bb] = out
+            ds = self.datasets[0]
+            assert out.ndim == ds.ndim, "%i, %i" % (out.ndim, ds.ndim)
+            if out.ndim == 4:
+                ds[(slice(None),) + out_bb] = out
+            else:
+                ds[out_bb] = out
         else:
             for ds, ch in zip(self.datasets, self.channel_order):
                 if ds.ndim == 3:
