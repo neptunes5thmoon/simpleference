@@ -178,7 +178,7 @@ def run_inference(prediction,
     def log(off):
         if log_processed is not None:
             with open(log_processed, 'a') as log_f:
-                log_f.write(json.dumps(off) + ', ')
+                log_f.write(json.dumps(off) + '\n')
         return off
 
     # iterate over all the offsets, get the input data and predict
