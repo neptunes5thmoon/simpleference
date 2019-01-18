@@ -7,12 +7,14 @@ import threading
 
 
 class PyTorchPredict(object):
-    def __init__(self, model_path, crop=None, gpu=0):
+    def __init__(self, model_path, crop=None, gpu=0, prep_model=None):
         assert os.path.exists(model_path), model_path
         self.model = torch.load(model_path, pickle_module=dill)
         self.model.eval()
         self.gpu = gpu
         self.model.cuda(self.gpu)
+        if prep_model is not None:
+            self.model = prep_model(self.model)
         # validate cropping
         if crop is not None:
             assert isinstance(crop, (list, tuple))
@@ -53,12 +55,14 @@ class PyTorchPredict(object):
 
 
 class InfernoPredict(PyTorchPredict):
-    def __init__(self, model_path, crop=None, gpu=0, use_best=True):
+    def __init__(self, model_path, crop=None, gpu=0, use_best=True, prep_model=None):
         from inferno.trainers.basic import Trainer
         assert os.path.exists(model_path), model_path
         trainer = Trainer().load(from_directory=model_path, best=use_best)
         self.model = trainer.model.cuda(gpu)
         self.model.eval()
+        if prep_model is not None:
+            self.model = prep_model(self.model)
         self.gpu = gpu
         # validate cropping
         if crop is not None:
