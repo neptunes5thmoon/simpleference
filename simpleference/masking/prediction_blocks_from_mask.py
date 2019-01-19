@@ -2,8 +2,21 @@ from __future__ import print_function, division
 import os
 from math import floor, ceil
 import json
-import h5py
 import numpy as np
+
+import h5py
+import z5py
+
+
+def load_mask(path, key):
+    ext = os.path.splitext(path)[-1]
+    if ext.lower() in ('.h5', '.hdf', '.hdf'):
+        with h5py.File(path, 'r') as f:
+            mask = f[key][:]
+    elif ext.lower() in ('.zr', '.zarr', '.n5'):
+        with z5py.File(path, 'r') as f:
+            mask = f[key][:]
+    return mask
 
 
 def make_prediction_blocks(full_shape, output_shape, mask_file, output_file,
@@ -18,10 +31,10 @@ def make_prediction_blocks(full_shape, output_shape, mask_file, output_file,
         roi_end = full_shape
 
     assert os.path.exists(mask_file), mask_file
-    with h5py.File(mask_file) as f:
-        mask = f[mask_key][:]
-        print(mask.shape)
-        print(np.sum(mask))
+    mask = load_mask(mask_file, mask_key)
+
+    print(mask.shape)
+    print(np.sum(mask))
 
     if downscale_factor is None:
         print("Determining downscale factor from shapes")
