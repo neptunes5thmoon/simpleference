@@ -25,6 +25,19 @@ def zero_out_const_sections(data):
     return data
 
 
+def downscale(data, factor):
+    if factor != 1:
+        slices = tuple(
+            slice(None, None, factor)
+            for _ in range(data.ndim))
+        data = data[slices]
+    return data
+
+
+def clip(data, min_clip=-1., max_clip=1.):
+    return np.clip(data, min_clip, max_clip)
+
+
 def preprocess(data, scale=2, shift=-1):
     return zero_out_const_sections(scale_shift(normalize(data),
                                                          scale,
