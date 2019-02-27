@@ -27,7 +27,7 @@ class IoBase(object):
     """
     def __init__(self, path, keys, io_module, channel_order=None):
         assert isinstance(keys, (tuple, list)), type(keys)
-        assert len(keys) in (1, 2), str(len(keys))
+        #assert len(keys) in (1, 2), str(len(keys))
         self.path = path
         self.keys = keys
         self.ff = io_module.File(self.path)
@@ -46,19 +46,24 @@ class IoBase(object):
         return self.datasets[0][bounding_box]
 
     def write(self, out, out_bb):
-
-        for ds, ch in zip(self.datasets, self.channel_order):
-            if isinstance(ch, list):
-                assert out.ndim == 4
-                # FIXME
-                # z5py can't be called with a list as slicing index, hence this does not work.
-                # this means, that we can only assign all channels to a single outputfile for now.
-                # the best way to fix this would be to implement indexing by list in z5py
-                # ds[(slice(None),) + out_bb] = out[ch]
-                ds[(slice(None),) + out_bb] = out
-            else:
-                assert out[ch].ndim == 3
-                ds[out_bb] = out[ch]
+        if isinstance(out,list):
+            for ds, ch, o, bb in zip(self.datasets,self.channel_order, out, out_bb):
+                assert o.ndim == 3
+                print(ds[bb].shape, o.shape,bb, ds.shape)
+                ds[bb] = o
+        else:
+            for ds, ch in zip(self.datasets, self.channel_order):
+                if isinstance(ch, list):
+                    assert out.ndim == 4
+                    # FIXME
+                    # z5py can't be called with a list as slicing index, hence this does not work.
+                    # this means, that we can only assign all channels to a single outputfile for now.
+                    # the best way to fix this would be to implement indexing by list in z5py
+                    # ds[(slice(None),) + out_bb] = out[ch]
+                    ds[(slice(None),) + out_bb] = out
+                else:
+                    assert out[ch].ndim == 3
+                    ds[out_bb] = out[ch]
 
     @property
     def shape(self):

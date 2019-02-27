@@ -60,11 +60,17 @@ class TensorflowPredict(object):
         with self.lock:
             output = self.session.run(self.output_key, feed_dict={self.input_key: input_data})
 
-        assert isinstance(output, np.ndarray)
-        if output.ndim == 5:
-            output = output[0]
-        assert output.ndim == 4
-        return output.astype('float32')
+        #assert isinstance(output, np.ndarray)
+        #if output.ndim == 5:
+        #    output = output[0]
+        #assert output.ndim == 4
+        if len(output)>1:
+            output_32 = []
+            for o in output:
+                output_32.append(o.astype('float32'))
+        else:
+            output_32 = np.array(output).astype('float32')
+        return output_32
 
     def _read_meta_graph(self):
         # read the meta-graph

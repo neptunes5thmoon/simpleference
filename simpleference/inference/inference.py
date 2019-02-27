@@ -134,7 +134,7 @@ def run_inference(prediction,
 
     n_blocks = len(offset_list)
     print("Starting prediction...")
-    print("For %i number of blocks" % n_blocks)
+    print("For %i blocks" % n_blocks)
 
     # the additional context requested in the input
     context = np.array([input_shape[i] - output_shape[i]
@@ -156,18 +156,40 @@ def run_inference(prediction,
 
     @dask.delayed(nout=2)
     def verify_shape(offset, output):
-        # crop if necessary
-        stops = [off + outs for off, outs in zip(offset, output.shape[1:])]
+        def verify_array_shape(offset_arr, out_arr):
+            # crop if necessary
+            if out_arr.ndim == 4:
+                stops = [off + outs for off, outs in zip(offset_arr, out_arr.shape[1:])]
+            elif out_arr.ndim == 3:
+                stops = [off + outs for off, outs in zip(offset_arr, out_arr.shape)]
+            if any(stop > dim_size for stop, dim_size in zip(stops, shape)):
+                if out_arr.ndim == 4:
+                    bb = ((slice(None),) +
+                          tuple(slice(0, dim_size - off if stop > dim_size else None)
+                                for stop, dim_size, off in zip(stops, shape, offset_arr)))
+                elif out_arr.ndim == 3:
+                    bb = (tuple(slice(0, dim_size - off if stop > dim_size else None)
+                                for stop, dim_size, off in zip(stops, shape, offset_arr)))
+                out_arr = out_arr[bb]
 
-        if any(stop > dim_size for stop, dim_size in zip(stops, shape)):
-            bb = ((slice(None),) +
-                  tuple(slice(0, dim_size - off if stop > dim_size else None)
-                        for stop, dim_size, off in zip(stops, shape, offset)))
-            output = output[bb]
+            output_bounding_b = tuple(slice(off, off + outs)
+                                        for off, outs in zip(offset_arr, output_shape))
 
-        output_bounding_box = tuple(slice(off, off + outs)
-                                    for off, outs in zip(offset, output_shape))
-        return output, output_bounding_box
+            return out_arr, output_bounding_b
+
+        if isinstance(output, list):
+            verified_outputs = []
+            output_bounding_box = []
+            for out in output:
+                assert isinstance(out,np.ndarray)
+                o, bb = verify_array_shape(offset, out)
+                verified_outputs.append(o)
+                output_bounding_box.append(bb)
+            return verified_outputs, output_bounding_box
+        elif isinstance(output, np.ndarray):
+            return verify_array_shape(offset, output)
+        else:
+            raise TypeError("don't know what to do with output of type"+type(output))
 
     @dask.delayed
     def write_output(output, output_bounding_box):
