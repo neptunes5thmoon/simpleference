@@ -5,7 +5,7 @@ import json
 
 from random import shuffle
 import numpy as np
-
+import fnmatch
 
 # this returns the offsets for the given output blocks.
 # blocks are padded on the fly during inference if necessary
@@ -29,6 +29,43 @@ def get_offset_lists(shape,
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
 
+    for ii, olist in enumerate(out_list):
+        list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
+        with open(list_name, 'w') as f:
+            json.dump(olist, f)
+
+def redistribute_offset_lists(gpu_list, save_folder):
+    full_list_jsons = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?.json')
+    processed_list_files = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?_*_processed.txt')
+    full_block_list = set()
+    for fl in full_list_jsons:
+        with open(os.path.join(save_folder, fl), 'r') as f:
+            bl = json.load(f)
+            full_block_list.update({tuple(coo) for coo in bl})
+    processed_block_list = set()
+    for pl in processed_list_files:
+        with open(os.path.join(save_folder, pl), 'r') as f:
+            bl = f.read()
+        bl = '[' + bl[:bl.rfind(']') + 1] + ']'
+        bl = json.loads(bl)
+        processed_block_list.update({tuple(coo) for coo in bl})
+    to_be_processed_block_list = list(full_block_list - processed_block_list)
+    previous_tries = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?_try*.json')
+    if len(previous_tries) == 0:
+        tryno = 0
+    else:
+        trynos = []
+        for tr in previous_tries:
+            trynos.append(int(tr.split('try')[1].split('.json')[0]))
+        tryno = max(trynos)+1
+    print('Backing up last try ({0:})'.format(tryno))
+    for f in full_list_jsons:
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder,f[:-5]+'_try{0:}.json'.format(tryno)))
+    for f in processed_list_files:
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder,f[:-5]+ '_try{0:}.txt'.format(tryno)))
+
+    n_splits = len(gpu_list)
+    out_list = [to_be_processed_block_list[i::n_splits] for i in range(n_splits)]
     for ii, olist in enumerate(out_list):
         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
         with open(list_name, 'w') as f:
