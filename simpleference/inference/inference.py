@@ -193,11 +193,14 @@ def run_inference(prediction,
         result = write_output(output_crop, output_bounding_box)
         results.append(result)
 
-    get = functools.partial(dask.threaded.get, num_workers=num_cpus)
+    # deprecated in current dask
+    # success = dask.compute(*results, get=get)
+    # get = functools.partial(dask.threaded.get, num_workers=num_cpus)
+
     # NOTE: Because dask.compute doesn't take an argument, but rather an
     # arbitrary number of arguments, computing each in turn, the output of
     # dask.compute(results) is a tuple of length 1, with its only element
     # being the results list. If instead we pass the results list as *args,
     # we get the desired container of results at the end.
-    success = dask.compute(*results, get=get)
+    success = dask.compute(*results, scheduler='threads', num_workers=num_cpus)
     print('Ran {0:} jobs'.format(sum(success)))
