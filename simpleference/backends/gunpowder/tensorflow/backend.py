@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import threading
-
+from itertools import izip as zip
 # we try to use the tensorflow from gunpowder,
 # otherwise we try to revert to normal tensorflow
 try:
@@ -28,7 +28,7 @@ class TensorflowPredict(object):
     def __init__(self,
                  weight_graph_basename,
                  inference_graph_basename,
-                 input_key,
+                 input_keys,
                  output_key):
         assert os.path.exists(weight_graph_basename + '.index'), weight_graph_basename
         # NOTE this seems a bit dubious, don't know if this is persistent
@@ -38,8 +38,9 @@ class TensorflowPredict(object):
 
         assert os.path.exists(inference_graph_basename + '.meta'), inference_graph_basename
         self.inference_graph_basename = inference_graph_basename
-
-        self.input_key = input_key
+        if not (isinstance(input_keys, tuple) or isinstance(input_keys, list)):
+            input_keys = [input_keys, ]
+        self.input_keys = input_keys
         self.output_key = output_key
 
         self.graph = tf.Graph()
@@ -51,14 +52,15 @@ class TensorflowPredict(object):
         self.lock = threading.Lock()
 
     def __call__(self, input_data):
-        assert isinstance(input_data, np.ndarray)
-
+        assert isinstance(input_data, np.ndarray) or isinstance(input_data, list) or isinstance(input_data, tuple)
+        if isinstance(input_data, np.ndarray):
+            input_data = [input_data,]
         # we need to lock the inference on the gpu to prevent dask from running multiple predictions in
         # parallel. It might be beneficial, to only lock the inference step, but not to lock
         # shipping data onto / from the gpu.
         # Unfortunately I don't now how to do this in tf.
         with self.lock:
-            output = self.session.run(self.output_key, feed_dict={self.input_key: input_data})
+            output = self.session.run(self.output_key, feed_dict=dict(zip(self.input_keys, input_data)))
 
         #assert isinstance(output, np.ndarray)
         #if output.ndim == 5:
