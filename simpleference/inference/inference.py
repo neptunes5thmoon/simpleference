@@ -66,6 +66,8 @@ def run_inference_n5_multi(prediction,
                           channel_order=None):
     if isinstance(raw_path, str):
         raw_path = [raw_path, ] * len(input_keys)
+    if isinstance(save_file, str):
+        save_file = [save_file, ] * len(target_keys)
     for rp in raw_path:
         assert os.path.exits(rp)
     assert len(input_keys) == len(raw_path)
@@ -77,10 +79,12 @@ def run_inference_n5_multi(prediction,
 
     io_ins = []
     for rp, input_key in zip(raw_path, input_keys):
-        io_ins.append(IoN5(rp, [input_key]))
-
-    io_out = IoN5(save_file, target_keys, channel_order=channel_order)
-    run_inference(prediction, preprocess, postprocess, io_ins, io_out, offset_list, input_shapes, output_shape,
+        io_ins.append(IoN5(rp, input_key))
+    io_outs = []
+    for sf, target_key in zip(save_file, target_keys):
+        io_outs.append(IoN5(sf, target_key))
+    #io_out = IoN5(save_file, target_keys, channel_order=channel_order)
+    run_inference(prediction, preprocess, postprocess, io_ins, io_outs, offset_list, input_shapes, output_shape,
                   padding_mode=padding_mode, num_cpus=num_cpus, log_processed=log_processed)
 
 def run_inference_n5(prediction,
@@ -108,16 +112,18 @@ def run_inference_n5(prediction,
     # Note that this is not the case for the hdf5 wrapper,
     # which just takes a single key.
     io_in = IoN5(raw_path, [input_key])
-
-    io_out = IoN5(save_file, target_keys, channel_order=channel_order)
-    run_inference(prediction, preprocess, postprocess, io_in, io_out,
+    io_outs = []
+    for target_key in target_keys:
+        io_outs.append(IoN5(save_file,target_key))
+    run_inference(prediction, preprocess, postprocess, io_in, io_outs,
                   offset_list, input_shape, output_shape, padding_mode=padding_mode,
                   num_cpus=num_cpus, log_processed=log_processed)
     # This is not necessary for n5 datasets
     # which do not need to be closed, but we leave it here for
     # reference when using other (hdf5) io wrappers
     io_in.close()
-    io_out.close()
+    for io_out in io_outs:
+        io_out.close()
 
 
 def run_inference_h5(prediction,
@@ -161,9 +167,9 @@ def run_inference(prediction,
                   preprocess,
                   postprocess,
                   io_ins,
-                  io_out,
+                  io_outs,
                   offset_list,
-                  input_shape,
+                  input_shapes,
                   output_shape,
                   padding_mode='reflect',
                   num_cpus=5,
@@ -171,23 +177,23 @@ def run_inference(prediction,
 
     assert callable(prediction)
     assert callable(preprocess)
-    assert len(output_shape) == len(input_shape)
 
     n_blocks = len(offset_list)
     print("Starting prediction...")
     print("For %i blocks" % n_blocks)
     if not (isinstance(io_ins, list) or isinstance(io_ins, tuple)):
         io_ins = (io_ins,)
-        input_shape = (input_shape,)
+        input_shapes = (input_shapes,)
 
     # the additional context requested in the input
     contexts = []
-    for in_sh in input_shape:
+    for in_sh in input_shapes:
         context = np.array([in_sh[i] - output_shape[i]
                         for i in range(len(in_sh))]) / 2
         contexts.append(context.astype('uint32'))
 
-    shape = io_out.shape
+    shape = io_outs[0].shape # assume those are the same
+    assert [io_out.shape == shape for io_out in io_outs], "different output shapes is not implemented yet"
     @dask.delayed
     def load_offset(offset):
         return load_input(io_ins, offset, contexts, output_shape,
@@ -226,7 +232,7 @@ def run_inference(prediction,
             verified_outputs = []
             output_bounding_box = []
             for out in output:
-                assert isinstance(out,np.ndarray)
+                assert isinstance(out, np.ndarray)
                 o, bb = verify_array_shape(offset, out)
                 verified_outputs.append(o)
                 output_bounding_box.append(bb)
@@ -238,7 +244,8 @@ def run_inference(prediction,
 
     @dask.delayed
     def write_output(output, output_bounding_box):
-        io_out.write(output, output_bounding_box)
+        for io_out, out in zip(io_outs, output):
+            io_out.write(output, output_bounding_box)
         return 1
 
     @dask.delayed

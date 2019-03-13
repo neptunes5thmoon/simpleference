@@ -29,7 +29,7 @@ class TensorflowPredict(object):
                  weight_graph_basename,
                  inference_graph_basename,
                  input_keys,
-                 output_key):
+                 output_keys):
         assert os.path.exists(weight_graph_basename + '.index'), weight_graph_basename
         # NOTE this seems a bit dubious, don't know if this is persistent
         # for different tf models
@@ -41,7 +41,7 @@ class TensorflowPredict(object):
         if not (isinstance(input_keys, tuple) or isinstance(input_keys, list)):
             input_keys = [input_keys, ]
         self.input_keys = input_keys
-        self.output_key = output_key
+        self.output_keys = output_keys
 
         self.graph = tf.Graph()
         self.session = tf.Session(graph=self.graph)
@@ -60,7 +60,7 @@ class TensorflowPredict(object):
         # shipping data onto / from the gpu.
         # Unfortunately I don't now how to do this in tf.
         with self.lock:
-            output = self.session.run(self.output_key, feed_dict=dict(zip(self.input_keys, input_data)))
+            output = self.session.run(self.output_keys, feed_dict=dict(zip(self.input_keys, input_data)))
 
         #assert isinstance(output, np.ndarray)
         #if output.ndim == 5:
@@ -71,7 +71,7 @@ class TensorflowPredict(object):
             for o in output:
                 output_32.append(o.astype('float32'))
         else:
-            output_32 = np.array(output).astype('float32')
+            output_32 = [np.array(output).astype('float32'), ]
         return output_32
 
     def _read_meta_graph(self):

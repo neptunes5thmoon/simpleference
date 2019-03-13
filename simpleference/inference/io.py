@@ -25,45 +25,47 @@ class IoBase(object):
     """
     Base class for I/O with h5 and n5
     """
-    def __init__(self, path, keys, io_module, channel_order=None):
-        assert isinstance(keys, (tuple, list)), type(keys)
+    def __init__(self, path, key, io_module, channel_order=None):
+        #assert isinstance(key, (tuple, list)), type(key)
         #assert len(keys) in (1, 2), str(len(keys))
         self.path = path
-        self.keys = keys
+        self.keys = key
         self.ff = io_module.File(self.path)
-        assert all(kk in self.ff for kk in self.keys), "%s, %s" % (self.path, self.keys)
-        self.datasets = [self.ff[kk] for kk in self.keys]
+        assert key in self.ff, "%s, %s" % (self.path, self.key)
+        self.dataset = self.ff[key]
         # we just assume that everything has the same shape...
-        self._shape = self.datasets[0].shape
-        if channel_order is None:
-            self.channel_order = list(range(len(self.keys)))
-        else:
-            self.channel_order = channel_order
-        assert all(isinstance(ch, (int, list)) for ch in self.channel_order)
+        self._shape = self.dataset.shape
+        #if channel_order is None:
+        #    self.channel_order = list(range(len(self.keys)))
+        #else:
+        #    self.channel_order = channel_order
+        #assert all(isinstance(ch, (int, list)) for ch in self.channel_order)
 
     def read(self, bounding_box):
-        assert len(self.datasets) == 1
-        return self.datasets[0][bounding_box]
+        #assert len(self.datasets) == 1
+        return self.dataset[bounding_box]
 
     def write(self, out, out_bb):
-        if isinstance(out,list):
-            for ds, ch, o, bb in zip(self.datasets,self.channel_order, out, out_bb):
-                assert o.ndim == 3
-                print(ds[bb].shape, o.shape,bb, ds.shape)
-                ds[bb] = o
-        else:
-            for ds, ch in zip(self.datasets, self.channel_order):
-                if isinstance(ch, list):
-                    assert out.ndim == 4
-                    # FIXME
-                    # z5py can't be called with a list as slicing index, hence this does not work.
-                    # this means, that we can only assign all channels to a single outputfile for now.
-                    # the best way to fix this would be to implement indexing by list in z5py
-                    # ds[(slice(None),) + out_bb] = out[ch]
-                    ds[(slice(None),) + out_bb] = out
-                else:
-                    assert out[ch].ndim == 3
-                    ds[out_bb] = out[ch]
+        # if isinstance(out, list):
+        #     for ds, ch, o, bb in zip(self.datasets, self.channel_order, out, out_bb):
+        #         assert o.ndim == 3
+        #         print(ds[bb].shape, o.shape,bb, ds.shape)
+        #         ds[bb] = o
+        # else:
+        #     for ds, ch in zip(self.datasets, self.channel_order):
+        #         if isinstance(ch, list):
+        #             assert out.ndim == 4
+        #             # FIXME
+        #             # z5py can't be called with a list as slicing index, hence this does not work.
+        #             # this means, that we can only assign all channels to a single outputfile for now.
+        #             # the best way to fix this would be to implement indexing by list in z5py
+        #             # ds[(slice(None),) + out_bb] = out[ch]
+        #             ds[(slice(None),) + out_bb] = out
+        #         else:
+        #             assert out[ch].ndim == 3
+        #             ds[out_bb] = out[ch]
+        assert out.ndim == len(self.shape)
+        self.dataset[out_bb] = out
 
     @property
     def shape(self):
