@@ -40,8 +40,6 @@ class IoBase(object):
         self.ff = io_module.File(self.path)
         assert all(kk in self.ff for kk in self.keys), "%s, %s" % (self.path, self.keys)
         self.datasets = [self.ff[kk] for kk in self.keys]
-
-        # TODO validate
         # we just assume that everything has the same shape...
         self._shape = self.datasets[0].shape
 
@@ -56,8 +54,8 @@ class IoBase(object):
                 elif ds.ndim == 3:
                     assert n_chan == 1
                 else:
-                    raise RuntimeError("Invalid dataset dimensionality")
             self.channel_order = channel_order
+                    raise RuntimeError("Invalid dataset dimensionality")
         else:
             assert len(self.datasets) == 1, "Need channel order if given more than one dataset"
             self.channel_order = None
