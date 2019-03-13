@@ -176,17 +176,21 @@ def run_inference(prediction,
     n_blocks = len(offset_list)
     print("Starting prediction...")
     print("For %i blocks" % n_blocks)
+    if not (isinstance(io_ins, list) or isinstance(io_ins, tuple)):
+        io_ins = (io_ins,)
+        input_shape = (input_shape,)
 
     # the additional context requested in the input
-    context = np.array([input_shape[i] - output_shape[i]
-                        for i in range(len(input_shape))]) / 2
-    context = context.astype('uint32')
-    if not (isinstance(io_ins, list) or isinstance(io_ins, tuple)):
-        io_ins = (io_ins, )
+    contexts = []
+    for in_sh in input_shape:
+        context = np.array([in_sh[i] - output_shape[i]
+                        for i in range(len(in_sh))]) / 2
+        contexts.append(context.astype('uint32'))
+
     shape = io_out.shape
     @dask.delayed
     def load_offset(offset):
-        return load_input(io_ins, offset, context, output_shape,
+        return load_input(io_ins, offset, contexts, output_shape,
                           padding_mode=padding_mode)
 
     preprocess = dask.delayed(preprocess)
