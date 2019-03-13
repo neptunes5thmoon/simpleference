@@ -160,7 +160,7 @@ def run_inference_h5(prediction,
 def run_inference(prediction,
                   preprocess,
                   postprocess,
-                  io_in,
+                  io_ins,
                   io_out,
                   offset_list,
                   input_shape,
@@ -181,12 +181,12 @@ def run_inference(prediction,
     context = np.array([input_shape[i] - output_shape[i]
                         for i in range(len(input_shape))]) / 2
     context = context.astype('uint32')
-
-    shape = io_in.shape
-
+    if not (isinstance(io_ins, list) or isinstance(io_ins, tuple)):
+        io_ins = (io_ins, )
+    shape = io_out.shape
     @dask.delayed
     def load_offset(offset):
-        return load_input(io_in, offset, context, output_shape,
+        return load_input(io_ins, offset, context, output_shape,
                           padding_mode=padding_mode)
 
     preprocess = dask.delayed(preprocess)
