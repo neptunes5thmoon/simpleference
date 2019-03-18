@@ -5,11 +5,11 @@ import json
 from concurrent.futures import ProcessPoolExecutor
 
 from subprocess import call
-sys.path.append('/groups/saalfeld/home/heinrichl/tmp/simpleference')
+sys.path.append('/groups/saalfeld/home/heinrichl/construction/simpleference')
 sys.path.append('/groups/saalfeld/home/heinrichl/Projects/CNNectome')
 sys.path.append('/groups/saalfeld/home/heinrichl/Projects/git_repos/gunpowder')
-sys.path.append('/groups/saalfeld/home/papec/Work/my_projects/z5/bld27/python')
-from simpleference.inference.util import get_offset_lists, redistribute_offset_lists
+#sys.path.append('/groups/saalfeld/home/papec/Work/my_projects/z5/bld27/python')
+from simpleference.inference.util import get_offset_lists_wc, redistribute_offset_lists
 from utils.label import Label
 #from simpleference.inference.util import offset_list_from_precomputed
 import z5py
@@ -35,7 +35,9 @@ def complete_inference(path, min_sc, max_sc, out_file, gpu_list, iteration, labe
     #shape = rf['volumes/orig_raw'].shape
 
     # create the datasets
-    output_shape = (236, 236, 236)
+    output_shape_vc = (236, 236, 236)
+    resolution = (4, 4, 4)
+    output_shape_wc = tuple(np.array(output_shape_vc)* np.array(resolution))
     #out_file = '/nrs/saalfeld/heinrichl/cell/gt122018/setup01/run02/test2_{0:}.n5'.format(iteration)
     #out_file ='/nrs/saalfeld/heinrichl/cell/gt110618/setup03/run01/test_cell2_v1_{0:}.n5'.format(iteration)
     if not os.path.exists(out_file):
@@ -45,11 +47,11 @@ def complete_inference(path, min_sc, max_sc, out_file, gpu_list, iteration, labe
     # the n5 datasets might exist already
     if compute_offset_lists:
         for label in labels:
-            f.create_dataset(label.labelname, shape=shape, compression='gzip', dtype='uint8', chunks=output_shape)
+            f.require_dataset(label.labelname, shape=shape, compression='gzip', dtype='uint8', chunks=output_shape_vc)
     # make the offset files, that assign blocks to gpus
     # generate offset lists with mask
     if compute_offset_lists:
-        get_offset_lists(shape, gpu_list, out_file, output_shape=output_shape)
+        get_offset_lists_wc(shape, resolution, gpu_list, out_file, output_shape_wc=output_shape_wc)
     else:
         redistribute_offset_lists(gpu_list, out_file)
     # run multiprocessed inference
@@ -93,8 +95,8 @@ def check_completeness(out_file, gpu):
     return complete
 
 if __name__ == '__main__':
-    gpu_list = [4, 5, 6, 7]
-    iteration = 100000
+    gpu_list = [1, 2, 5, 6, 7]
+    iteration = 200000
     path = '/groups/saalfeld/saalfeldlab/projects/cell/nrs-data/cell2/test2.n5'
     out_path = '/nrs/saalfeld/heinrichl/cell/gt122018/setup01/run02/test2_{0:}.n5'.format(iteration)
     min_sc = 0.

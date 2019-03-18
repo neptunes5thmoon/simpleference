@@ -43,12 +43,15 @@ def single_gpu_inference(gpu, iteration, labels, path, out_file, scale=2., shift
     for label in labels:
         output_keys.append(net_io_names[label.labelname])
         target_keys.append(label.labelname)
-    input_shape = (340, 340, 340)
-    output_shape = (236, 236, 236)
+    input_shape_vc = (340, 340, 340)
+    output_shape_vc = (236, 236, 236)
+    resolution = (4, 4, 4)
+    output_shape_wc = tuple(np.array(output_shape_vc) * np.array(resolution))
+    input_shape_wc = tuple(np.array(input_shape_vc)* np.array(resolution))
     prediction = TensorflowPredict(weight_meta_graph,
                                    inference_meta_graph,
-                                   input_key=input_key,
-                                   output_key=output_keys)
+                                   input_keys=input_key,
+                                   output_keys=output_keys)
     t_predict = time.time()
     run_inference_n5(prediction,
                      partial(clip_preprocess, scale=scale*2., shift=shift*2.-1.),
@@ -56,11 +59,13 @@ def single_gpu_inference(gpu, iteration, labels, path, out_file, scale=2., shift
                      path,
                      out_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape_wc,
+                     output_shape_wc=output_shape_wc,
                      target_keys= target_keys,
-                   #  input_key='volumes/orig_raw',
+                     #  input_key='volumes/orig_raw',
                      input_key='volumes/raw',
+                     input_resolution=resolution,
+                     target_resolution=resolution,
                      log_processed=os.path.join(os.path.dirname(offset_file), 'list_gpu_{0:}_{'
                                                                                 '1:}_processed.txt'.format(gpu,
                                                                                                            iteration)))

@@ -8,8 +8,8 @@
 export NAME=$(basename $PWD-prediction-$1)
 export USER_ID=${UID}
 GUNPOWDER_PATH=$(readlink -f $HOME/Projects/mygunpowder/gunpowder)
-SIMPLEFERENCE_PATH=$(readlink -f $HOME/tmp/simpleference)
-PRED_PATH=$(readlink -f $HOME/tmp/simpleference/experiments/cell_generic)
+SIMPLEFERENCE_PATH=$(readlink -f $HOME/construction/simpleference)
+PRED_PATH=$(readlink -f $HOME/construction/simpleference/experiments/cell_generic)
 Z_PATH=$(readlink -f $HOME/../papec/Work/my_projects/z5/bld27/python)
 
 nvidia-docker rm -f $NAME
