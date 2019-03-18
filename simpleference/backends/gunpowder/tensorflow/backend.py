@@ -61,7 +61,6 @@ class TensorflowPredict(object):
         # Unfortunately I don't now how to do this in tf.
         with self.lock:
             output = self.session.run(self.output_keys, feed_dict=dict(zip(self.input_keys, input_data)))
-
         #assert isinstance(output, np.ndarray)
         #if output.ndim == 5:
         #    output = output[0]

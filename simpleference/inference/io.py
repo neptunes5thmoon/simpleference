@@ -1,3 +1,5 @@
+import warnings
+import numpy as np
 # try to import z5py
 try:
     import z5py
@@ -25,27 +27,34 @@ class IoBase(object):
     """
     Base class for I/O with h5 and n5
     """
-    def __init__(self, path, key, io_module, channel_order=None):
-        #assert isinstance(key, (tuple, list)), type(key)
-        #assert len(keys) in (1, 2), str(len(keys))
+    def __init__(self, path, key, io_module, voxel_size=None):
         self.path = path
-        self.keys = key
+        self.key = key
         self.ff = io_module.File(self.path)
         assert key in self.ff, "%s, %s" % (self.path, self.key)
         self.dataset = self.ff[key]
-        # we just assume that everything has the same shape...
-        self._shape = self.dataset.shape
-        #if channel_order is None:
-        #    self.channel_order = list(range(len(self.keys)))
-        #else:
-        #    self.channel_order = channel_order
-        #assert all(isinstance(ch, (int, list)) for ch in self.channel_order)
+        try:
+            self._voxel_size = tuple(np.array(self.dataset.attrs['resolution']).astype(np.int))
+            if voxel_size is not None and voxel_size != self._voxel_size:
+                warnings.warn("specified voxel size does not match voxel size saved in data")
+        except KeyError:
+            self._voxel_size = voxel_size
+        assert self.voxel_size is not None
+        self._shape_vc = self.dataset.shape
+        self._shape = tuple(np.array(self._shape_vc) * np.array(self._voxel_size))
 
-    def read(self, bounding_box):
-        #assert len(self.datasets) == 1
-        return self.dataset[bounding_box]
+    def read(self, starts_wc, stops_wc):
+        # make sure that things align with the voxel grid
+        assert all(start_wc % res == 0 for start_wc, res in zip(starts_wc, self.voxel_size))
+        assert all(stop_wc % res == 0 for stop_wc, res in zip(stops_wc, self.voxel_size))
+        bb_vc = tuple(slice(start_wc/res, stop_wc/res) for start_wc, stop_wc, res in zip(starts_wc, stops_wc,
+                                                                                   self._voxel_size))
+        return self.read_vc(bb_vc)
 
-    def write(self, out, out_bb):
+    def read_vc(self, bounding_box_vc):
+        return self.dataset[bounding_box_vc]
+
+    def write_vc(self, out, out_bb_vc):
         # if isinstance(out, list):
         #     for ds, ch, o, bb in zip(self.datasets, self.channel_order, out, out_bb):
         #         assert o.ndim == 3
@@ -65,7 +74,42 @@ class IoBase(object):
         #             assert out[ch].ndim == 3
         #             ds[out_bb] = out[ch]
         assert out.ndim == len(self.shape)
-        self.dataset[out_bb] = out
+        self.dataset[out_bb_vc] = out
+
+    def write(self, out, offsets_wc):
+        assert all(offset_wc % res == 0 for offset_wc, res in zip(offsets_wc, self.voxel_size))
+        stops_wc = tuple([offset_wc + out_sh * res for offset_wc, out_sh, res in zip(offsets_wc,
+                                                                                     out.shape, self.voxel_size)])
+        assert all(stop_wc % res == 0 for stop_wc, res in zip(stops_wc, self.voxel_size))
+        bb_vc = tuple(slice(start_wc/res, stop_wc/res) for start_wc, stop_wc, res in zip(offsets_wc, stops_wc,
+                                                                                   self.voxel_size))
+        return self.write_vc(out, bb_vc)
+
+    def verify_block_shape(self, offset_wc, arr):
+        if arr.ndim == 4:
+            stops_wc = tuple([off_wc + outs * res for off_wc, outs, res in zip(offset_wc, arr.shape[1:],
+                                                                             self.voxel_size)])
+        else:
+            stops_wc = tuple([off_wc + outs * res for off_wc, outs, res in zip(offset_wc, arr.shape,
+                                                                               self.voxel_size)])
+
+        # test whether block is overhanging, then crop
+        if any(stop_wc > sh_wc for stop_wc, sh_wc in zip(stops_wc, self.shape)):
+            arr_stops_wc = [sh_wc-off_wc if stop_wc > sh_wc else None
+                            for stop_wc, sh_wc, off_wc in zip(stops_wc, self.shape, offset_wc)]
+            assert all(arr_stop_wc%res == 0 if arr_stop_wc is not None else True
+                       for arr_stop_wc, res in zip(arr_stops_wc, self.voxel_size))
+            arr_stops_vc = [arr_stop_wc/res if arr_stop_wc is not None else None
+                            for arr_stop_wc, res in zip(arr_stops_wc, self.voxel_size)]
+            bb_vc = tuple(slice(0, arr_stop_vc) for arr_stop_vc in arr_stops_vc)
+            if arr.ndim == 4:
+                bb_vc = ((slice(None),) + bb_vc)
+            arr = arr[bb_vc]
+        return arr
+
+    @property
+    def voxel_size(self):
+        return self._voxel_size
 
     @property
     def shape(self):
@@ -76,18 +120,18 @@ class IoBase(object):
 
 
 class IoHDF5(IoBase):
-    def __init__(self, path, keys, channel_order=None):
+    def __init__(self, path, keys,voxel_size=None):
         assert WITH_H5PY, "Need h5py"
-        super(IoHDF5, self).__init__(path, keys, h5py, channel_order)
+        super(IoHDF5, self).__init__(path, keys, h5py, voxel_size=voxel_size)
 
     def close(self):
         self.ff.close()
 
 
 class IoN5(IoBase):
-    def __init__(self, path, keys, channel_order=None):
+    def __init__(self, path, keys, channel_order=None, voxel_size=None):
         assert WITH_Z5PY, "Need z5py"
-        super(IoN5, self).__init__(path, keys, z5py, channel_order)
+        super(IoN5, self).__init__(path, keys, z5py, voxel_size=voxel_size)
 
 
 class IoDVID(object):
