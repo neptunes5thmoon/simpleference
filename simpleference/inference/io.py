@@ -87,10 +87,10 @@ class IoBase(object):
 
     def verify_block_shape(self, offset_wc, arr):
         if arr.ndim == 4:
-            stops_wc = tuple([off_wc + outs * res for off_wc, outs, res in zip(offset_wc, arr.shape[1:],
+            stops_wc = tuple([off_wc + out_sh * res for off_wc, out_sh, res in zip(offset_wc, arr.shape[1:],
                                                                              self.voxel_size)])
         else:
-            stops_wc = tuple([off_wc + outs * res for off_wc, outs, res in zip(offset_wc, arr.shape,
+            stops_wc = tuple([off_wc + out_sh * res for off_wc, out_sh, res in zip(offset_wc, arr.shape,
                                                                                self.voxel_size)])
 
         # test whether block is overhanging, then crop
