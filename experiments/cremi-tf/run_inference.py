@@ -42,8 +42,8 @@ def single_gpu_inference(sample, gpu, iteration):
                      offset_list,
                      input_key='raw',
                      target_keys='predictions/full_affs',
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape,
                      channel_order=[list(range(12))])
     t_predict = time.time() - t_predict
 

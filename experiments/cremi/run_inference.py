@@ -35,8 +35,8 @@ def single_gpu_inference(sample, gpu, iteration):
                      raw_path,
                      out_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape)
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape)
     t_predict = time.time() - t_predict
 
     # write timing informations as textfile in the n5 topdir

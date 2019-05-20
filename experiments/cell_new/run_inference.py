@@ -76,8 +76,8 @@ def single_gpu_inference(gpu, iteration):
                      path,
                      out_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape,
                      target_keys= (
                                    'cell',
                                    'plasma_membrane',
@@ -93,7 +93,7 @@ def single_gpu_inference(gpu, iteration):
                                    'vesicles_membrane',
                                    'microtubules',
                                    ),
-                   #  input_key='volumes/orig_raw',
+                     #  input_key='volumes/orig_raw',
                      input_key='volumes/raw',
                      log_processed=os.path.join(os.path.dirname(offset_file), 'list_gpu_{0:}_{'
                                                                                 '1:}_processed.txt'.format(gpu,

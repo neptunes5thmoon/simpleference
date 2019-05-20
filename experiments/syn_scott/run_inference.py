@@ -45,8 +45,8 @@ def single_gpu_inference(sample, gpu, iteration):
                      path,
                      out_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape,
                      target_keys=('syncleft_dist_DTU-2_{0:}'.format(iteration),'syncleft_cc_DTU-2_{0:}'.format(
                          iteration)),
                      input_key='gray',
