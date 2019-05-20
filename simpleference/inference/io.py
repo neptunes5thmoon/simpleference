@@ -129,7 +129,7 @@ class IoHDF5(IoBase):
 
 
 class IoN5(IoBase):
-    def __init__(self, path, keys, channel_order=None, voxel_size=None):
+    def __init__(self, path, keys, voxel_size=None):
         assert WITH_Z5PY, "Need z5py"
         super(IoN5, self).__init__(path, keys, z5py, voxel_size=voxel_size)
 
