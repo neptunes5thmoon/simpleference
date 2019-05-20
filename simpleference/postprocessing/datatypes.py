@@ -27,7 +27,7 @@ def clip_float_to_uint8(input_, offsets_wc, float_range=(0., 1.), safe_scale=Tru
         ret = []
         # if not isinstance(output_bounding_box, list):
         #     output_bounding_box = [output_bounding_box]*len(input_)
-
+        print("processing {0:}".format(offsets_wc))
         for i in input_:
             ret.append(clip_float_to_uint8_arr(i, float_range=float_range, safe_scale=safe_scale))
         return ret

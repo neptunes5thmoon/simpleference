@@ -68,12 +68,16 @@ def redistribute_offset_lists(gpu_list, save_folder):
             bl = json.load(f)
             full_block_list.update({tuple(coo) for coo in bl})
     processed_block_list = set()
+    bls = []
     for pl in processed_list_files:
         with open(os.path.join(save_folder, pl), 'r') as f:
-            bl = f.read()
-        bl = '[' + bl[:bl.rfind(']') + 1] + ']'
-        bl = json.loads(bl)
-        processed_block_list.update({tuple(coo) for coo in bl})
+            bl_txt = f.read()
+        bl_txt = '[' + bl_txt[:bl_txt.rfind(']') + 1] + ']'
+        bls.append(json.loads(bl_txt))
+        processed_block_list.update({tuple(coo) for coo in bls[-1]})
+    if processed_block_list < full_block_list:
+        for bl in bls:
+            processed_block_list.remove(tuple(bl[-1]))
     to_be_processed_block_list = list(full_block_list - processed_block_list)
     previous_tries = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?_try*.json')
     if len(previous_tries) == 0:
