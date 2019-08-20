@@ -1,5 +1,4 @@
 import numpy as np
-
 from scipy.ndimage.morphology import binary_dilation
 
 
@@ -12,7 +11,7 @@ def postprocess_ilastik_predictions(prediction,
     Arguments:
         prediction [np.ndarray]   - Array with the channel predictions
         dilation_iterations [int] - Number of iterations used for the dilation (default: 1)
-        threshold [floatt]        - Threshold for the mask channel (default: 0.5)
+        threshold [float]         - Threshold for the mask channel (default: 0.5)
     """
     import vigra
 

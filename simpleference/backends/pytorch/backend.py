@@ -3,16 +3,18 @@ import numpy as np
 
 import dill
 import torch
-from torch.autograd import Variable
 import threading
 
 
 class PyTorchPredict(object):
-    def __init__(self, model_path, crop=None, gpu=0):
+    def __init__(self, model_path, crop=None, gpu=0, prep_model=None):
         assert os.path.exists(model_path), model_path
         self.model = torch.load(model_path, pickle_module=dill)
+        self.model.eval()
         self.gpu = gpu
         self.model.cuda(self.gpu)
+        if prep_model is not None:
+            self.model = prep_model(self.model)
         # validate cropping
         if crop is not None:
             assert isinstance(crop, (list, tuple))
@@ -37,28 +39,29 @@ class PyTorchPredict(object):
         # better performance by only locking in step 2, or steps 1-2, or steps
         # 2-3. We should perform this experiment and then choose the best
         # option for our hardware (and then remove this comment! ;)
-        with self.lock:
+        with self.lock, torch.no_grad():
             # 1. Transfer the data to the GPU
-            torch_data = Variable(torch.from_numpy(input_data[None, None])
-                                  .cuda(self.gpu), volatile=True)
-            print('predicting a block!')
+            torch_data = torch.from_numpy(input_data[None, None]).cuda(self.gpu)
             # 2. Run the model
             predicted_on_gpu = self.model(torch_data)
             if isinstance(predicted_on_gpu, tuple):
                 predicted_on_gpu = predicted_on_gpu[0]
             # 3. Transfer the results to the CPU
-            out = predicted_on_gpu.cpu().data.numpy().squeeze()
+            out = predicted_on_gpu.cpu().numpy().squeeze()
         if self.crop is not None:
             out = self.apply_crop(out)
         return out
 
 
 class InfernoPredict(PyTorchPredict):
-    def __init__(self, model_path, crop=None, gpu=0, use_best=True):
+    def __init__(self, model_path, crop=None, gpu=0, use_best=True, prep_model=None):
         from inferno.trainers.basic import Trainer
         assert os.path.exists(model_path), model_path
         trainer = Trainer().load(from_directory=model_path, best=use_best)
         self.model = trainer.model.cuda(gpu)
+        self.model.eval()
+        if prep_model is not None:
+            self.model = prep_model(self.model)
         self.gpu = gpu
         # validate cropping
         if crop is not None:
