@@ -63,7 +63,7 @@ def load_input_crop(ios, offset_wc, contexts_wc, input_shapes_wc, padding_mode='
     else:
         ios = (ios, )
         contexts_wc = (contexts_wc, )
-    datas  = []
+    datas = []
 
     offset_correction_wc = []
     for dim in range(len(offset_wc)):
@@ -99,7 +99,6 @@ def load_input_crop(ios, offset_wc, contexts_wc, input_shapes_wc, padding_mode='
             pad_right_wc = tuple(stop_wc - shape_wc[i] if stop_wc > shape_wc[i] else 0 for i, stop_wc in enumerate(
                 stops_wc))
             stops_wc = [min(shape_wc[i], stop_wc) for i, stop_wc in enumerate(stops_wc)]
-
         data = io.read(starts_wc, stops_wc)
 
         # pad if necessary
@@ -198,6 +197,7 @@ def run_inference_n5_multi_crop(prediction,
         input_keys = (input_keys, )
 
     io_ins = []
+
     for rp, input_key, input_res in zip(raw_path, input_keys, input_resolutions):
         io_ins.append(IoN5(rp, input_key, voxel_size=input_res))
     io_outs = []
@@ -438,10 +438,11 @@ def run_inference_crop(prediction,
         context_wc = np.array([in_sh_wc[i] - network_output_shape_wc[i]
                                for i in range(len(in_sh_wc))]) / 2
         contexts_wc.append(tuple(context_wc.astype('uint32')))
-    for io in io_outs:
-        assert all(chunk_sh_wc%res==0 for chunk_sh_wc, res in zip(chunk_shape_wc, io.voxel_size))
 
-    shape_wc = io_outs[0].shape # assume those are the same
+    for io in io_outs:
+        assert all(chunk_sh_wc % res == 0 for chunk_sh_wc, res in zip(chunk_shape_wc, io.voxel_size))
+
+    shape_wc = io_outs[0].shape  # assume those are the same
     assert [io_out.shape == shape_wc for io_out in io_outs], "different output shapes is not implemented yet"
 
     @dask.delayed(nout=2)
@@ -480,11 +481,11 @@ def run_inference_crop(prediction,
 
     @dask.delayed
     def log(off):
-        print("THIS HAPPENED")
         if log_processed is not None:
             with open(log_processed, 'a') as log_f:
                 log_f.write(json.dumps(off) + ', ')
         return off
+
     @dask.delayed
     def crop_to_chunk_shape(arrs, offset_correction_wc):
         ret_arrs = []
