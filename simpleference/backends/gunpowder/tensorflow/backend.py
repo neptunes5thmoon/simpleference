@@ -66,7 +66,7 @@ class TensorflowPredict(object):
         #if output.ndim == 5:
         #    output = output[0]
         #assert output.ndim == 4
-        if len(output)>1:
+        if len(output) > 1:
             output_32 = []
             for o in output:
                 output_32.append(o.astype('float32'))

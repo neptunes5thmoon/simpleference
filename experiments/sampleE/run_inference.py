@@ -37,8 +37,8 @@ def single_gpu_inference(gpu, iteration, gpu_offset):
                      raw_path,
                      save_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape)
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape)
     t_predict = time.time() - t_predict
 
     with open(os.path.join(save_folder, 't-inf_gpu%i.txt' % (gpu + gpu_list,)), 'w') as f:

@@ -36,13 +36,13 @@ def single_gpu_inference(path, gpu, iteration):
                      path,
                      out_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape,
                      target_keys='syncleft_dist_DTU-2_{0:}'.format(iteration),
                      input_key='volumes/raw/s0',
                      log_processed = '/nrs/saalfeld/heinrichl/synapses/sampleE_DTU2_offsets_update/list_gpu_{'
                                      '0:}_processed.txt'.format(gpu)
-    )
+                     )
     t_predict = time.time() - t_predict
 
     with open(os.path.join(out_file, 't-inf_gpu%i.txt' % gpu), 'w') as f:

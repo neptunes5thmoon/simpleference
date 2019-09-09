@@ -58,8 +58,8 @@ def single_gpu_inference(raw_path,
                      raw_path,
                      out_path,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape)
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape)
     t_predict = time.time() - t_predict
     print("Running inference in %f s" % t_predict)
 

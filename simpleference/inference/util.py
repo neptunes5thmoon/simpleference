@@ -51,6 +51,31 @@ def get_offset_lists(shape,
         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
         with open(list_name, 'w') as f:
             json.dump(olist, f)
+def get_offset_lists_wc(shape_vc,
+                        resolution,
+                     gpu_list,
+                     save_folder,
+                     output_shape_wc,
+                     randomize=False):
+    in_list = []
+    for z_w in range(0, shape_vc[0]*resolution[0], output_shape_wc[0]):
+        for y_w in range(0, shape_vc[1]*resolution[1], output_shape_wc[1]):
+            for x_w in range(0, shape_vc[2]*resolution[2], output_shape_wc[2]):
+                in_list.append([z_w, y_w, x_w])
+
+    if randomize:
+        shuffle(in_list)
+
+    n_splits = len(gpu_list)
+    out_list = [in_list[i::n_splits] for i in range(n_splits)]
+
+    if not os.path.exists(save_folder):
+        os.mkdir(save_folder)
+
+    for ii, olist in enumerate(out_list):
+        list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
+        with open(list_name, 'w') as f:
+            json.dump(olist, f)
 
 
 # this returns the offsets for the given output blocks and bounding box.

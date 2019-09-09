@@ -69,8 +69,8 @@ def single_gpu_inference(gpu, iteration, list_extension=''):
                      raw_path,
                      out_file,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape,
                      target_keys='s0',
                      input_key='s0',
                      log_processed=processed_file)
