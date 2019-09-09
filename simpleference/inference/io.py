@@ -30,12 +30,12 @@ class IoBase(object):
 
     Arguments:
         path (str): path to h5 or n5 file
-        key (str or list[str]): key or list of keys to datasets in file
+        keys (str or list[str]): key or list of keys to datasets in file
         io_module (io python module): needs to follow h5py syntax.
             either z5py or h5py
         channel_orders (list[slice]): mapping of channels to output datasets (default: None)
     """
-    def __init__(self, path, key, io_module, channel_order=None, voxel_size=None):
+    def __init__(self, path, keys, io_module, channel_order=None, voxel_size=None):
         assert isinstance(keys, (tuple, list, str)), type(keys)
         self.path = path
         self.keys = keys if isinstance(keys, (list, tuple)) else [keys]
@@ -64,8 +64,9 @@ class IoBase(object):
                 elif ds.ndim == 3:
                     assert n_chan == 1
                 else:
-            self.channel_order = channel_order
                     raise RuntimeError("Invalid dataset dimensionality")
+            self.channel_order = channel_order
+
         else:
             assert len(self.datasets) == 1, "Need channel order if given more than one dataset"
             self.channel_order = None
@@ -79,7 +80,7 @@ class IoBase(object):
                                                                                    self._voxel_size))
         return self.read_vc(bb_vc)
 
-                    ds[out_bb] = out[ch][0]
+
     def read_vc(self, bounding_box_vc):
         return self.datasets[0][bounding_box_vc]
     def write_vc(self, out, out_bb_vc):
@@ -93,6 +94,7 @@ class IoBase(object):
         else:
             for ds, ch in zip(self.datasets, self.channel_order):
                 if ds.ndim == 3:
+                    ds[out_bb_vc] = out[ch][0]
                 else:
                     ds[(slice(None),) + out_bb_vc] = out[ch]
 
