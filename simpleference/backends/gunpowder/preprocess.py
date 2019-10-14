@@ -33,7 +33,7 @@ def zero_out_const_sections(data):
             data[z] = 0
     return data
 
-
+@multiple_inputs
 def downscale(data, factor):
     if factor != 1:
         slices = tuple(
@@ -42,7 +42,7 @@ def downscale(data, factor):
         data = data[slices]
     return data
 
-
+@multiple_inputs
 def clip(data, min_clip=-1., max_clip=1.):
     return np.clip(data, min_clip, max_clip)
 
