@@ -138,12 +138,8 @@ def run_inference_n5_multi(prediction,
                            channel_orders=None):
     if isinstance(raw_path, str):
         raw_path = [raw_path, ] * len(input_keys)
-    for rp in raw_path:
-        assert os.path.exists(rp)
     if isinstance(save_file, str):
         save_file = [save_file, ] * len(target_keys)
-    for sf in save_file:
-        assert os.path.exists(sf)
     if isinstance(input_keys, str):
         input_keys = (input_keys, )
     if isinstance(target_keys, str):
@@ -279,7 +275,6 @@ def run_inference_h5(prediction,
                      log_processed=None,
                      channel_orders=None):
 
-    assert os.path.exists(raw_path)
     assert os.path.exists(raw_path)
     assert os.path.exists(save_file)
     if isinstance(target_keys, str):
