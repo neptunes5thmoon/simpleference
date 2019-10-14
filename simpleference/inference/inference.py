@@ -99,7 +99,6 @@ def load_input_crop(ios, offset_wc, contexts_wc, input_shapes_wc, padding_mode='
             pad_right_wc = tuple(stop_wc - shape_wc[i] if stop_wc > shape_wc[i] else 0 for i, stop_wc in enumerate(
                 stops_wc))
             stops_wc = [min(shape_wc[i], stop_wc) for i, stop_wc in enumerate(stops_wc)]
-
         data = io.read(starts_wc, stops_wc)
 
         # pad if necessary
@@ -139,8 +138,12 @@ def run_inference_n5_multi(prediction,
                            channel_orders=None):
     if isinstance(raw_path, str):
         raw_path = [raw_path, ] * len(input_keys)
+    for rp in raw_path:
+        assert os.path.exists(rp)
     if isinstance(save_file, str):
         save_file = [save_file, ] * len(target_keys)
+    for sf in save_file:
+        assert os.path.exists(sf)
     if isinstance(input_keys, str):
         input_keys = (input_keys, )
     if isinstance(target_keys, str):
@@ -336,7 +339,7 @@ def run_inference(prediction,
     assert [io_out.shape == shape_wc for io_out in io_outs], "different output shapes is not implemented yet"
     @dask.delayed
     def load_offset(offset_wc):
-        print("Start predicting block at", offset)
+        print("Start predicting block at", offset_wc)
         return load_input(io_ins, offset_wc, contexts_wc, input_shapes_wc,
                           padding_mode=padding_mode)
 
