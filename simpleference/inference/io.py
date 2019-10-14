@@ -80,9 +80,10 @@ class IoBase(object):
                                                                                    self._voxel_size))
         return self.read_vc(bb_vc)
 
-
     def read_vc(self, bounding_box_vc):
+        assert len(self.datasets) == 1, "Use separate IOs for reading"
         return self.datasets[0][bounding_box_vc]
+
     def write_vc(self, out, out_bb_vc):
         if self.channel_order is None:
             ds = self.datasets[0]
