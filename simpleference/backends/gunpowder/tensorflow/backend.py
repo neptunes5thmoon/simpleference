@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import threading
-from itertools import izip as zip
 # we try to use the tensorflow from gunpowder,
 # otherwise we try to revert to normal tensorflow
 try:
