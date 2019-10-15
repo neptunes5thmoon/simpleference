@@ -107,8 +107,8 @@ def load_input_crop(ios, offset_wc, contexts_wc, input_shapes_wc, padding_mode='
             pad_right_wc = (0, 0, 0) if pad_right_wc is None else pad_right_wc
             assert all(pad_right_wc % res == 0 for pad_right_wc, res in zip(pad_right_wc, io.voxel_size))
             assert all(pad_left_wc % res == 0 for pad_left_wc, res in zip(pad_left_wc, io.voxel_size))
-            pad_right_vc = tuple(pad_right_wc / res for pad_right_wc, res in zip(pad_right_wc, io.voxel_size))
-            pad_left_vc = tuple(pad_left_wc / res for pad_left_wc, res in zip(pad_left_wc, io.voxel_size))
+            pad_right_vc = tuple(int(pad_right_wc / res) for pad_right_wc, res in zip(pad_right_wc, io.voxel_size))
+            pad_left_vc = tuple(int(pad_left_wc / res) for pad_left_wc, res in zip(pad_left_wc, io.voxel_size))
             pad_width_vc = tuple((pl_vc, pr_vc) for pl_vc, pr_vc in zip(pad_left_vc, pad_right_vc))
             if padding_mode == 'constant':
                 datas.append(np.pad(data, pad_width_vc, mode=padding_mode, constant_values=pad_value))
@@ -499,13 +499,16 @@ def run_inference_crop(prediction,
             with open(log_processed, 'a') as log_f:
                 log_f.write(json.dumps(off) + '\n')
         return off
+
     @dask.delayed
     def crop_to_chunk_shape(arrs, offset_correction_wc):
         ret_arrs = []
         for io, arr in zip(io_outs, arrs):
             assert all(oc%res == 0 for oc, res in zip(offset_correction_wc, io.voxel_size))
-            offset_correction_vc = [oc/res for oc, res in zip(offset_correction_wc, io.voxel_size)]
-            stops_vc = [oc_vc+chunk_sh_wc/res for oc_vc, chunk_sh_wc, res in zip(offset_correction_vc,
+            offset_correction_vc = [int(oc/res) for oc, res in zip(offset_correction_wc, io.voxel_size)]
+            assert all((chunk_sh_wc%res==0) for chunk_sh_wc, res in zip(chunk_shape_wc,
+                                                                              io.voxel_size))
+            stops_vc = [int(oc_vc+chunk_sh_wc/res) for oc_vc, chunk_sh_wc, res in zip(offset_correction_vc,
                                                                                  chunk_shape_wc, io.voxel_size)]
             bb_vc = tuple(slice(off_vc, stop_vc) for off_vc, stop_vc in zip(offset_correction_vc, stops_vc))
             ret_arrs.append(arr[bb_vc])

@@ -76,7 +76,7 @@ class IoBase(object):
         assert all(start_wc % res == 0 for start_wc, res in zip(starts_wc, self.voxel_size))
         assert all(stop_wc % res == 0 for stop_wc, res in zip(stops_wc, self.voxel_size))
         assert len(self.datasets) == 1
-        bb_vc = tuple(slice(start_wc/res, stop_wc/res) for start_wc, stop_wc, res in zip(starts_wc, stops_wc,
+        bb_vc = tuple(slice(int(start_wc/res), int(stop_wc/res)) for start_wc, stop_wc, res in zip(starts_wc, stops_wc,
                                                                                    self._voxel_size))
         return self.read_vc(bb_vc)
 
@@ -104,7 +104,7 @@ class IoBase(object):
         stops_wc = tuple([offset_wc + out_sh * res for offset_wc, out_sh, res in zip(offsets_wc,
                                                                                      out.shape, self.voxel_size)])
         assert all(stop_wc % res == 0 for stop_wc, res in zip(stops_wc, self.voxel_size))
-        bb_vc = tuple(slice(start_wc/res, stop_wc/res) for start_wc, stop_wc, res in zip(offsets_wc, stops_wc,
+        bb_vc = tuple(slice(int(start_wc/res), int(stop_wc/res)) for start_wc, stop_wc, res in zip(offsets_wc, stops_wc,
                                                                                    self.voxel_size))
         return self.write_vc(out, bb_vc)
 
@@ -122,7 +122,7 @@ class IoBase(object):
                             for stop_wc, sh_wc, off_wc in zip(stops_wc, self.shape, offset_wc)]
             assert all(arr_stop_wc%res == 0 if arr_stop_wc is not None else True
                        for arr_stop_wc, res in zip(arr_stops_wc, self.voxel_size))
-            arr_stops_vc = [arr_stop_wc/res if arr_stop_wc is not None else None
+            arr_stops_vc = [int(arr_stop_wc/res) if arr_stop_wc is not None else None
                             for arr_stop_wc, res in zip(arr_stops_wc, self.voxel_size)]
             bb_vc = tuple(slice(0, arr_stop_vc) for arr_stop_vc in arr_stops_vc)
             if arr.ndim == 4:
