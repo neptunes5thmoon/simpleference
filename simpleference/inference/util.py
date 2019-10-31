@@ -1,11 +1,16 @@
 from __future__ import print_function
 import h5py
+import z5py
 import os
 import json
-
 from random import shuffle
 import numpy as np
 import fnmatch
+from .io import IoN5
+from .inference import load_input_crop
+import dask
+import toolz as tz
+import logging
 
 def _offset_list(shape, output_shape):
     in_list = []
@@ -153,6 +158,54 @@ def redistribute_offset_lists(gpu_list, save_folder):
         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
         with open(list_name, 'w') as f:
             json.dump(olist, f)
+
+def load_mask(path, key):
+    ext = os.path.splitext(path)[-1]
+    if ext.lower() in ('.h5', '.hdf', '.hdf'):
+        with h5py.File(path, 'r') as f:
+            mask = f[key]
+    elif ext.lower() in ('.zr', '.zarr', '.n5'):
+        with z5py.File(path, 'r') as f:
+            mask = f[key]
+    return mask
+
+def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_cpus):
+    mask = load_mask(path, mask_ds)
+    mask_voxel_size = mask.attrs["pixelResolution"]["dimensions"]
+    shape_wc = tuple(np.array(mask.shape) * np.array(mask_voxel_size))
+    complete_offset_list = _offset_list(shape_wc, output_shape_wc)
+
+    io = IoN5(path, mask_ds, voxel_size=mask_voxel_size, channel_order =None)
+
+    @dask.delayed()
+    def load_offset(offset_wc):
+        return load_input_crop(io, offset_wc, (0,) * len(output_shape_wc), output_shape_wc, padding_mode="constant")[0]
+
+    @dask.delayed()
+    def evaluate_mask(mask_block):
+        if np.sum(mask_block) > 0:
+            return True
+        else:
+            return False
+
+    offsets_mask_eval = []
+    for offset_wc in complete_offset_list:
+        keep_offset = tz.pipe(offset_wc, load_offset, evaluate_mask)
+        offsets_mask_eval.append((offset_wc, keep_offset))
+
+    offsets_mask_eval = dask.compute(*offsets_mask_eval, scheduler="threads", num_workers=n_cpus)
+
+    offsets_in_mask = []
+    for o, m in offsets_mask_eval:
+        if m:
+            offsets_in_mask.append(o)
+
+    logging.info("{0:}/{1:} blocks contained in mask, saving offsets in {2:}".format(len(offsets_in_mask),
+                                                                                     len(complete_offset_list),
+                                                                                     offset_file_json))
+    with open(offset_file_json, 'w') as f:
+        json.dump(offsets_in_mask, f)
+
 
 # this returns the offsets for the given output blocks.
 # blocks are padded on the fly in the inference if necessary
