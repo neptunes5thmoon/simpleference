@@ -10,16 +10,18 @@ def multiple_inputs(func):
     return wrapper
 
 @multiple_inputs
-def normalize(data):
-    if data.dtype == np.uint8:
-        factor = 1. / 255
-    elif data.dtype == np.float32:
-        assert data.min() >= 0 and data.max() <= 1, \
+def normalize(data, factor=None):
+    if factor is None:
+        if data.dtype == np.uint8:
+            factor = 1. / 255
+        elif data.dtype == np.uint16:
+            factor = 1. / (256. * 256. -1)
+        elif data.dtype == np.float32:
+            assert data.min() >= 0 and data.max() <= 1, \
             "Raw values are float but not in [0,1], I don't know how to normalize. Please provide a factor."
-        factor = 1.
-    else:
-        raise RuntimeError("False input dtype")
-
+            factor = 1.
+        else:
+            raise RuntimeError("False input dtype")
     return data * factor
 
 @multiple_inputs
