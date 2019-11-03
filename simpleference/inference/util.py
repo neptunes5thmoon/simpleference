@@ -148,9 +148,9 @@ def redistribute_offset_lists(gpu_list, save_folder):
         tryno = max(trynos)+1
     print('Backing up last try ({0:})'.format(tryno))
     for f in full_list_jsons:
-        os.rename(os.path.join(save_folder,f), os.path.join(save_folder,f[:-5]+'_try{0:}.json'.format(tryno)))
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-5] +'_try{0:}.json'.format(tryno)))
     for f in processed_list_files:
-        os.rename(os.path.join(save_folder,f), os.path.join(save_folder,f[:-5]+ '_try{0:}.txt'.format(tryno)))
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-4] + '_try{0:}.txt'.format(tryno)))
 
     n_splits = len(gpu_list)
     out_list = [to_be_processed_block_list[i::n_splits] for i in range(n_splits)]
