@@ -5,12 +5,14 @@ import os
 import json
 from random import shuffle
 import numpy as np
+import re
 import fnmatch
 from .io import IoN5
 from .inference import load_input_crop
 import dask
 import toolz as tz
 import logging
+
 
 def _offset_list(shape, output_shape):
     in_list = []
@@ -56,31 +58,6 @@ def get_offset_lists(shape,
         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
         with open(list_name, 'w') as f:
             json.dump(olist, f)
-# def get_offset_lists_wc(shape_vc,
-#                         resolution,
-#                      gpu_list,
-#                      save_folder,
-#                      output_shape_wc,
-#                      randomize=False):
-#     in_list = []
-#     for z_w in range(0, shape_vc[0]*resolution[0], output_shape_wc[0]):
-#         for y_w in range(0, shape_vc[1]*resolution[1], output_shape_wc[1]):
-#             for x_w in range(0, shape_vc[2]*resolution[2], output_shape_wc[2]):
-#                 in_list.append([z_w, y_w, x_w])
-#
-#     if randomize:
-#         shuffle(in_list)
-#
-#     n_splits = len(gpu_list)
-#     out_list = [in_list[i::n_splits] for i in range(n_splits)]
-#
-#     if not os.path.exists(save_folder):
-#         os.mkdir(save_folder)
-#
-#     for ii, olist in enumerate(out_list):
-#         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
-#         with open(list_name, 'w') as f:
-#             json.dump(olist, f)
 
 
 # this returns the offsets for the given output blocks and bounding box.
@@ -116,11 +93,21 @@ def get_offset_lists_with_bb(shape,
         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
         with open(list_name, 'w') as f:
             json.dump(olist, f)
-            
-            
+
+
+# redistributing offset lists from failed jobs
 def redistribute_offset_lists(gpu_list, save_folder):
-    full_list_jsons = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?.json')
-    processed_list_files = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?_*_processed.txt')
+    p_full = re.compile("list_gpu_\d+.json")
+    p_proc = re.compile("list_gpu_\d+_\S*_processed.txt")
+    full_list_jsons = []
+    processed_list_files = []
+    for f in os.listdir(save_folder):
+        mo_full = p_full.match(f)
+        mo_proc = p_proc.match(f)
+        if mo_full is not None:
+           full_list_jsons.append(f)
+        if mo_proc is not None:
+           processed_list_files.append(f)
     full_block_list = set()
     for fl in full_list_jsons:
         with open(os.path.join(save_folder, fl), 'r') as f:
@@ -134,11 +121,15 @@ def redistribute_offset_lists(gpu_list, save_folder):
         bl_txt = '[' + bl_txt[:bl_txt.rfind(']') + 1] + ']'
         bls.append(json.loads(bl_txt))
         processed_block_list.update({tuple(coo) for coo in bls[-1]})
-    if processed_block_list < full_block_list:
-        for bl in bls:
-            processed_block_list.remove(tuple(bl[-1]))
+
     to_be_processed_block_list = list(full_block_list - processed_block_list)
-    previous_tries = fnmatch.filter(os.listdir(save_folder), 'list_gpu_?_try*.json')
+    previous_tries = []
+    p_tries = re.compile("list_gpu_\d+_try\d+.json")
+    for f in os.listdir(save_folder):
+        mo_tries = p_tries.match(f)
+        if mo_tries is not None:
+            previous_tries.append(f)
+
     if len(previous_tries) == 0:
         tryno = 0
     else:
@@ -148,10 +139,9 @@ def redistribute_offset_lists(gpu_list, save_folder):
         tryno = max(trynos)+1
     print('Backing up last try ({0:})'.format(tryno))
     for f in full_list_jsons:
-        os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-5] +'_try{0:}.json'.format(tryno)))
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-5] + '_try{0:}.json'.format(tryno)))
     for f in processed_list_files:
         os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-4] + '_try{0:}.txt'.format(tryno)))
-
     n_splits = len(gpu_list)
     out_list = [to_be_processed_block_list[i::n_splits] for i in range(n_splits)]
     for ii, olist in enumerate(out_list):
@@ -168,6 +158,7 @@ def load_mask(path, key):
         with z5py.File(path, 'r') as f:
             mask = f[key]
     return mask
+
 
 def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_cpus):
     mask = load_mask(path, mask_ds)
