@@ -145,9 +145,11 @@ def redistribute_offset_lists(gpu_list, save_folder):
     n_splits = len(gpu_list)
     out_list = [to_be_processed_block_list[i::n_splits] for i in range(n_splits)]
     for ii, olist in enumerate(out_list):
-        list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
-        with open(list_name, 'w') as f:
-            json.dump(olist, f)
+        if len(olist) > 0:
+            list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
+            with open(list_name, 'w') as f:
+                json.dump(olist, f)
+
 
 def load_mask(path, key):
     ext = os.path.splitext(path)[-1]
