@@ -38,8 +38,8 @@ def single_gpu_inference(path, gpu, iteration):
                      preprocess,
                      path, path,
                      offset_list,
-                     input_shape=input_shape,
-                     output_shape=output_shape,
+                     input_shape_wc=input_shape,
+                     output_shape_wc=output_shape,
                      input_key='gray',
                      target_keys='predictions/full_affs',
                      full_affinities=True)

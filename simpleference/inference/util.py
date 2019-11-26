@@ -1,10 +1,17 @@
 from __future__ import print_function
 import h5py
+import z5py
 import os
 import json
-
 from random import shuffle
 import numpy as np
+import re
+import fnmatch
+from .io import IoN5
+from .inference import load_input_crop
+import dask
+import toolz as tz
+import logging
 
 
 def _offset_list(shape, output_shape):
@@ -86,6 +93,111 @@ def get_offset_lists_with_bb(shape,
         list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
         with open(list_name, 'w') as f:
             json.dump(olist, f)
+
+
+# redistributing offset lists from failed jobs
+def redistribute_offset_lists(gpu_list, save_folder):
+    p_full = re.compile("list_gpu_\d+.json")
+    p_proc = re.compile("list_gpu_\d+_\S*_processed.txt")
+    full_list_jsons = []
+    processed_list_files = []
+    for f in os.listdir(save_folder):
+        mo_full = p_full.match(f)
+        mo_proc = p_proc.match(f)
+        if mo_full is not None:
+           full_list_jsons.append(f)
+        if mo_proc is not None:
+           processed_list_files.append(f)
+    full_block_list = set()
+    for fl in full_list_jsons:
+        with open(os.path.join(save_folder, fl), 'r') as f:
+            bl = json.load(f)
+            full_block_list.update({tuple(coo) for coo in bl})
+    processed_block_list = set()
+    bls = []
+    for pl in processed_list_files:
+        with open(os.path.join(save_folder, pl), 'r') as f:
+            bl_txt = f.read()
+        bl_txt = '[' + bl_txt[:bl_txt.rfind(']') + 1] + ']'
+        bls.append(json.loads(bl_txt))
+        processed_block_list.update({tuple(coo) for coo in bls[-1]})
+
+    to_be_processed_block_list = list(full_block_list - processed_block_list)
+    previous_tries = []
+    p_tries = re.compile("list_gpu_\d+_try\d+.json")
+    for f in os.listdir(save_folder):
+        mo_tries = p_tries.match(f)
+        if mo_tries is not None:
+            previous_tries.append(f)
+
+    if len(previous_tries) == 0:
+        tryno = 0
+    else:
+        trynos = []
+        for tr in previous_tries:
+            trynos.append(int(tr.split('try')[1].split('.json')[0]))
+        tryno = max(trynos)+1
+    print('Backing up last try ({0:})'.format(tryno))
+    for f in full_list_jsons:
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-5] + '_try{0:}.json'.format(tryno)))
+    for f in processed_list_files:
+        os.rename(os.path.join(save_folder,f), os.path.join(save_folder, f[:-4] + '_try{0:}.txt'.format(tryno)))
+    n_splits = len(gpu_list)
+    out_list = [to_be_processed_block_list[i::n_splits] for i in range(n_splits)]
+    for ii, olist in enumerate(out_list):
+        if len(olist) > 0:
+            list_name = os.path.join(save_folder, 'list_gpu_%i.json' % gpu_list[ii])
+            with open(list_name, 'w') as f:
+                json.dump(olist, f)
+
+
+def load_mask(path, key):
+    ext = os.path.splitext(path)[-1]
+    if ext.lower() in ('.h5', '.hdf', '.hdf'):
+        with h5py.File(path, 'r') as f:
+            mask = f[key]
+    elif ext.lower() in ('.zr', '.zarr', '.n5'):
+        with z5py.File(path, 'r') as f:
+            mask = f[key]
+    return mask
+
+
+def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_cpus):
+    mask = load_mask(path, mask_ds)
+    mask_voxel_size = mask.attrs["pixelResolution"]["dimensions"]
+    shape_wc = tuple(np.array(mask.shape) * np.array(mask_voxel_size))
+    complete_offset_list = _offset_list(shape_wc, output_shape_wc)
+
+    io = IoN5(path, mask_ds, voxel_size=mask_voxel_size, channel_order =None)
+
+    @dask.delayed()
+    def load_offset(offset_wc):
+        return load_input_crop(io, offset_wc, (0,) * len(output_shape_wc), output_shape_wc, padding_mode="constant")[0]
+
+    @dask.delayed()
+    def evaluate_mask(mask_block):
+        if np.sum(mask_block) > 0:
+            return True
+        else:
+            return False
+
+    offsets_mask_eval = []
+    for offset_wc in complete_offset_list:
+        keep_offset = tz.pipe(offset_wc, load_offset, evaluate_mask)
+        offsets_mask_eval.append((offset_wc, keep_offset))
+
+    offsets_mask_eval = dask.compute(*offsets_mask_eval, scheduler="threads", num_workers=n_cpus)
+
+    offsets_in_mask = []
+    for o, m in offsets_mask_eval:
+        if m:
+            offsets_in_mask.append(o)
+
+    logging.info("{0:}/{1:} blocks contained in mask, saving offsets in {2:}".format(len(offsets_in_mask),
+                                                                                     len(complete_offset_list),
+                                                                                     offset_file_json))
+    with open(offset_file_json, 'w') as f:
+        json.dump(offsets_in_mask, f)
 
 
 # this returns the offsets for the given output blocks.
