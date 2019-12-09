@@ -72,7 +72,7 @@ setup(
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
     url=URL,
-    packages=['simpleference'],
+    packages=find_packages(),
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     dependency_links=DEPENDENCY_LINKS,
