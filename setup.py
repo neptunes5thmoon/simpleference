@@ -57,7 +57,7 @@ EXTRAS = {
 
     # developer version until release with file permission fix
     "zarr": [
-        "zarr @ git+https://github.com/zarr-developers/zarr.git@master"
+        "zarr @ git+https://github.com/zarr-developers/zarr@master"
     ]
 }
 
