@@ -192,6 +192,10 @@ def run_inference_n5_multi_crop(prediction,
         input_keys = (input_keys, )
     if isinstance(target_keys, str):
         target_keys = (target_keys, )
+    if len(input_resolutions) != len(input_keys):
+        input_resolutions = (input_resolutions,) * len(input_keys)
+    if len(target_resolutions) != len(target_keys) and len(target_resolutions) == len(network_output_shape_wc):
+        target_resolutions = (target_resolutions,) * len(target_keys)
     if channel_orders is None:
         channel_orders = [None, ] * len(target_keys)
 
@@ -202,14 +206,12 @@ def run_inference_n5_multi_crop(prediction,
     assert len(input_keys) == len(input_resolutions)
     assert len(target_keys) == len(target_resolutions)
 
-
     io_ins = []
     for rp, input_key, input_res in zip(raw_path, input_keys, input_resolutions):
         io_ins.append(IoN5(rp, input_key, voxel_size=input_res))
     io_outs = []
     for sf, target_key, target_res, channel_order in zip(save_file, target_keys, target_resolutions, channel_orders):
         io_outs.append(IoN5(sf, target_key, voxel_size=target_res, channel_order=channel_order))
-    #io_out = IoN5(save_file, target_keys, channel_order=channel_order)
     run_inference_crop(prediction, preprocess, postprocess, io_ins, io_outs, offset_list, network_input_shapes_wc,
                        network_output_shape_wc, chunk_shape_wc, padding_mode=padding_mode, num_cpus=num_cpus,
                        log_processed=log_processed, pad_value=pad_value)
