@@ -7,7 +7,7 @@ import dask
 import toolz as tz
 import functools
 
-from .io import IoN5, IoHDF5  # IoDVID
+from .io import IoN5, IoHDF5, IoZarr  # IoDVID
 
 
 def load_input(ios, offset_wc, contexts_wc, input_shapes_wc, padding_mode='reflect'):
@@ -166,6 +166,52 @@ def run_inference_n5_multi(prediction,
                   padding_mode=padding_mode, num_cpus=num_cpus, log_processed=log_processed)
 
 
+def run_inference_zarr_multi(prediction,
+                           preprocess,
+                           postprocess,
+                           raw_path,
+                           save_file,
+                           offset_list,
+                           input_shapes_wc,
+                           output_shape_wc,
+                           input_keys,
+                           target_keys,
+                           input_resolutions,
+                           target_resolutions,
+                           padding_mode='reflect',
+                           num_cpus=5,
+                           log_processed=None,
+                           channel_orders=None):
+    if isinstance(raw_path, str):
+        raw_path = [raw_path, ] * len(input_keys)
+    if isinstance(save_file, str):
+        save_file = [save_file, ] * len(target_keys)
+    if isinstance(input_keys, str):
+        input_keys = (input_keys,)
+    if isinstance(target_keys, str):
+        target_keys = (target_keys,)
+    if channel_orders is None:
+        channel_orders = [None, ] * len(target_keys)
+
+    assert len(channel_orders) == len(target_keys) == len(save_file)
+    assert all(os.path.exists(rp) for rp in raw_path)
+    assert len(input_keys) == len(raw_path)
+    assert all(os.path.exists(sf) for sf in save_file)
+    assert len(input_keys) == len(input_resolutions)
+    assert len(target_keys) == len(target_resolutions)
+
+    io_ins = []
+    for rp, input_key, input_res in zip(raw_path, input_keys, input_resolutions):
+        io_ins.append(IoZarr(rp, input_key, input_res))
+    io_outs = []
+    for sf, target_key, target_res, channel_order in zip(save_file, target_keys, target_resolutions, channel_orders):
+        io_outs.append(IoZarr(sf, target_key, voxel_size=target_res, channel_order=channel_order))
+    # io_out = IoN5(save_file, target_keys, channel_order=channel_order)
+    run_inference(prediction, preprocess, postprocess, io_ins, io_outs, offset_list, input_shapes_wc, output_shape_wc,
+                  padding_mode=padding_mode, num_cpus=num_cpus, log_processed=log_processed)
+
+
+
 def run_inference_n5_multi_crop(prediction,
                                 preprocess,
                                 postprocess,
@@ -217,6 +263,56 @@ def run_inference_n5_multi_crop(prediction,
                        log_processed=log_processed, pad_value=pad_value)
 
 
+def run_inference_zarr_multi_crop(prediction,
+                                preprocess,
+                                postprocess,
+                                raw_path,
+                                save_file,
+                                offset_list,
+                                network_input_shapes_wc,
+                                network_output_shape_wc,
+                                chunk_shape_wc,
+                                input_keys,
+                                target_keys,
+                                input_resolutions,
+                                target_resolutions,
+                                padding_mode='constant',
+                                num_cpus=5,
+                                log_processed=None,
+                                pad_value = 0,
+                                channel_orders=None):
+    if isinstance(raw_path, str):
+        raw_path = [raw_path, ] * len(input_keys)
+    if isinstance(save_file, str):
+        save_file = [save_file, ] * len(target_keys)
+    if isinstance(input_keys, str):
+        input_keys = (input_keys, )
+    if isinstance(target_keys, str):
+        target_keys = (target_keys, )
+    if len(input_resolutions) != len(input_keys):
+        input_resolutions = (input_resolutions,) * len(input_keys)
+    if len(target_resolutions) != len(target_keys) and len(target_resolutions) == len(network_output_shape_wc):
+        target_resolutions = (target_resolutions,) * len(target_keys)
+    if channel_orders is None:
+        channel_orders = [None, ] * len(target_keys)
+
+    assert len(channel_orders) == len(target_keys) == len(save_file)
+    assert all(os.path.exists(rp) for rp in raw_path)
+    assert len(input_keys) == len(raw_path)
+    assert all(os.path.exists(sf) for sf in save_file)
+    assert len(input_keys) == len(input_resolutions)
+    assert len(target_keys) == len(target_resolutions)
+
+    io_ins = []
+    for rp, input_key, input_res in zip(raw_path, input_keys, input_resolutions):
+        io_ins.append(IoZarr(rp, input_key, voxel_size=input_res))
+    io_outs = []
+    for sf, target_key, target_res, channel_order in zip(save_file, target_keys, target_resolutions, channel_orders):
+        io_outs.append(IoZarr(sf, target_key, voxel_size=target_res, channel_order=channel_order))
+    run_inference_crop(prediction, preprocess, postprocess, io_ins, io_outs, offset_list, network_input_shapes_wc,
+                       network_output_shape_wc, chunk_shape_wc, padding_mode=padding_mode, num_cpus=num_cpus,
+                       log_processed=log_processed, pad_value=pad_value)
+
 def run_inference_n5(prediction,
                      preprocess,
                      postprocess,
@@ -249,6 +345,49 @@ def run_inference_n5(prediction,
     io_outs = []
     for target_key, channel_order in zip(target_keys, channel_orders):
         io_outs.append(IoN5(save_file, target_key, voxel_size=target_resolution, channel_order=channel_order))
+    run_inference(prediction, preprocess, postprocess, io_in, io_outs,
+                  offset_list, input_shape_wc, output_shape_wc, padding_mode=padding_mode,
+                  num_cpus=num_cpus, log_processed=log_processed)
+    # This is not necessary for n5 datasets
+    # which do not need to be closed, but we leave it here for
+    # reference when using other (hdf5) io wrappers
+    io_in.close()
+    for io_out in io_outs:
+        io_out.close()
+
+
+def run_inference_zarr(prediction,
+                     preprocess,
+                     postprocess,
+                     raw_path,
+                     save_file,
+                     offset_list,
+                     input_shape_wc,
+                     output_shape_wc,
+                     input_key,
+                     target_keys,
+                     input_resolution,
+                     target_resolution,
+                     padding_mode='constant',
+                     num_cpus=5,
+                     log_processed=None,
+                     channel_orders=None):
+
+    assert os.path.exists(raw_path)
+    assert os.path.exists(save_file)
+    if isinstance(target_keys, str):
+        target_keys = (target_keys,)
+    if channel_orders is None:
+        channel_orders = [None, ] * len(target_keys)
+    assert len(channel_orders) == len(target_keys)
+    # The N5 IO/Wrapper needs iterables as keys
+    # so we wrap the input key in a list.
+    # Note that this is not the case for the hdf5 wrapper,
+    # which just takes a single key.
+    io_in = IoN5(raw_path, [input_key], voxel_size=input_resolution)
+    io_outs = []
+    for target_key, channel_order in zip(target_keys, channel_orders):
+        io_outs.append(IoZarr(save_file, target_key, voxel_size=target_resolution, channel_order=channel_order))
     run_inference(prediction, preprocess, postprocess, io_in, io_outs,
                   offset_list, input_shape_wc, output_shape_wc, padding_mode=padding_mode,
                   num_cpus=num_cpus, log_processed=log_processed)
