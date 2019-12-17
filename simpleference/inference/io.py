@@ -15,6 +15,13 @@ try:
 except ImportError:
     WITH_H5PY = False
 
+# try to import zarr
+try:
+    import zarr
+    WITH_ZARR = True
+except ImportError:
+    WITH_ZARR = False
+
 # try to import dvid
 try:
     from libdvid import DVIDNodeService
@@ -26,20 +33,19 @@ except ImportError:
 
 class IoBase(object):
     """
-    Base class for I/O with h5 and n5
+    Base class for I/O with h5, n5 and zarr. Libraries need to largely follow h5 syntax.
 
     Arguments:
         path (str): path to h5 or n5 file
         keys (str or list[str]): key or list of keys to datasets in file
-        io_module (io python module): needs to follow h5py syntax.
-            either z5py or h5py
-        channel_orders (list[slice]): mapping of channels to output datasets (default: None)
+        channel_order (list[slice]): mapping of channels to output datasets (default: None)
+        voxel_size (tuple or list[tuple]): voxel sizes of datasets stored in keys (same order)
     """
-    def __init__(self, path, keys, io_module, channel_order=None, voxel_size=None):
+    def __init__(self, path, keys, channel_order=None, voxel_size=None):
         assert isinstance(keys, (tuple, list, str)), type(keys)
         self.path = path
         self.keys = keys if isinstance(keys, (list, tuple)) else [keys]
-        self.ff = io_module.File(self.path)
+        self.ff = self.open(self.path)
         assert all(kk in self.ff for kk in self.keys), "%s, %s" % (self.path, self.keys)
         self.datasets = [self.ff[kk] for kk in self.keys]
         # we just assume that everything has the same shape and voxel size...
@@ -70,6 +76,9 @@ class IoBase(object):
         else:
             assert len(self.datasets) == 1, "Need channel order if given more than one dataset"
             self.channel_order = None
+
+    def open(self, path):
+        raise NotImplemented("open needs to be implemented by sub-classes")
 
     def read(self, starts_wc, stops_wc):
         # make sure that things align with the voxel grid
@@ -145,7 +154,10 @@ class IoBase(object):
 class IoHDF5(IoBase):
     def __init__(self, path, keys, channel_order=None, voxel_size=None):
         assert WITH_H5PY, "Need h5py"
-        super(IoHDF5, self).__init__(path, keys, h5py, channel_order=channel_order, voxel_size=voxel_size)
+        super(IoHDF5, self).__init__(path, keys, channel_order=channel_order, voxel_size=voxel_size)
+
+    def open(self, path):
+        return h5py.File(path)
 
     def close(self):
         self.ff.close()
@@ -154,7 +166,19 @@ class IoHDF5(IoBase):
 class IoN5(IoBase):
     def __init__(self, path, keys, channel_order=None, voxel_size=None):
         assert WITH_Z5PY, "Need z5py"
-        super(IoN5, self).__init__(path, keys, z5py, channel_order=channel_order, voxel_size=voxel_size)
+        super(IoN5, self).__init__(path, keys, channel_order=channel_order, voxel_size=voxel_size)
+
+    def open(self, path):
+        return z5py.File(path)
+
+
+class IoZarr(IoBase):
+    def __init__(self, path, keys, channel_order=None, voxel_size=None):
+        assert WITH_ZARR, "Need zarr"
+        super(IoZarr, self).__init__(path, keys, channel_order=channel_order, voxel_size=voxel_size)
+
+    def open(self, path):
+        return zarr.open(path)
 
 
 class IoDVID(object):

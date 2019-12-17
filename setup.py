@@ -24,7 +24,8 @@ except ModuleNotFoundError as e:
 
 
 NAME = "neptunes5thmoon-simpleference"
-DESCRIPTION = "A collection of scripts for building, training and validating Convolutional Neural Networks (CNNs) for Connectomics"
+DESCRIPTION = "A collection of scripts for building, training and validating " \
+              "Convolutional Neural Networks (CNNs) for Connectomics"
 URL = "https://github.com/neptunes5thmoon/simpleference"
 EMAIL = "heinrichl@janelia.hhmi.org"
 AUTHOR = "Larissa Heinrich"
@@ -53,10 +54,16 @@ EXTRAS = {
     "hdf5": [
         "h5py"
     ],
+
+    # developer version until release with file permission fix
+    "zarr": [
+        "zarr @ git+https://github.com/zarr-developers/zarr@master"
+    ]
 }
 
 DEPENDENCY_LINKS = [
     "git+https://github.com/neptunes5thmoon/gunpowder.git@dist_transform_py3#egg=gunpowder",
+    "git+https://github.com/zarr-developers/zarr.git@master#egg=zarr"
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))
