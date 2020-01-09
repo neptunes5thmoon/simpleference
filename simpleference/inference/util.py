@@ -151,19 +151,19 @@ def redistribute_offset_lists(gpu_list, save_folder):
                 json.dump(olist, f)
 
 
-def load_mask(path, key):
+def load_ds(path, key):
     ext = os.path.splitext(path)[-1]
     if ext.lower() in ('.h5', '.hdf', '.hdf'):
         with h5py.File(path, 'r') as f:
-            mask = f[key]
+            ds = f[key]
     elif ext.lower() in ('.zr', '.zarr', '.n5'):
         with z5py.File(path, 'r') as f:
-            mask = f[key]
-    return mask
+            ds = f[key]
+    return ds
 
 
 def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_cpus):
-    mask = load_mask(path, mask_ds)
+    mask = load_ds(path, mask_ds)
     mask_voxel_size = mask.attrs["pixelResolution"]["dimensions"]
     shape_wc = tuple(np.array(mask.shape) * np.array(mask_voxel_size))
     complete_offset_list = _offset_list(shape_wc, output_shape_wc)
@@ -199,6 +199,13 @@ def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_c
     with open(offset_file_json, 'w') as f:
         json.dump(offsets_in_mask, f)
 
+def generate_full_list(offset_file_json, output_shape_wc, path, raw_ds):
+    raw = load_ds(path, raw_ds)
+    raw_voxel_size = raw.attrs["pixelResolution"]["dimensions"]
+    shape_wc = tuple(np.array(raw.shape) * np.array(raw_voxel_size))
+    complete_offset_list = _offset_list(shape_wc, output_shape_wc)
+    with open(offset_file_json, "w") as f:
+        json.dumps(complete_offset_list, f)
 
 # this returns the offsets for the given output blocks.
 # blocks are padded on the fly in the inference if necessary
