@@ -205,7 +205,7 @@ def generate_full_list(offset_file_json, output_shape_wc, path, raw_ds):
     shape_wc = tuple(np.array(raw.shape) * np.array(raw_voxel_size))
     complete_offset_list = _offset_list(shape_wc, output_shape_wc)
     with open(offset_file_json, "w") as f:
-        json.dumps(complete_offset_list, f)
+        json.dump(complete_offset_list, f)
 
 # this returns the offsets for the given output blocks.
 # blocks are padded on the fly in the inference if necessary
