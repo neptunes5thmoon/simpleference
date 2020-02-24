@@ -7,11 +7,13 @@ except ImportError:
 try:
     import zarr
     WITH_ZARR = True
+    from .io import IoZarr
 except ImportError:
     WITH_ZARR = False
 try:
     import z5py
     WITH_Z5PY = True
+    from .io import IoN5
 except ImportError:
     WITH_Z5PY = False
 
@@ -21,7 +23,6 @@ from random import shuffle
 import numpy as np
 import re
 import fnmatch
-from .io import IoN5
 from .inference import load_input_crop
 import dask
 import toolz as tz
@@ -187,9 +188,10 @@ def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_c
     mask_voxel_size = mask.attrs["pixelResolution"]["dimensions"]
     shape_wc = tuple(np.array(mask.shape) * np.array(mask_voxel_size))
     complete_offset_list = _offset_list(shape_wc, output_shape_wc)
-
-    io = IoN5(path, mask_ds, voxel_size=mask_voxel_size, channel_order =None)
-
+    if WITH_Z5PY:
+        io = IoN5(path, mask_ds, voxel_size=mask_voxel_size, channel_order=None)
+    else:
+        io = IoZarr(path, mask_ds, voxel_size=mask_voxel_size, channel_order=None)
     @dask.delayed()
     def load_offset(offset_wc):
         return load_input_crop(io, offset_wc, (0,) * len(output_shape_wc), output_shape_wc, padding_mode="constant")[0]
