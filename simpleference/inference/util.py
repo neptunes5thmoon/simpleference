@@ -1,6 +1,20 @@
 from __future__ import print_function
-import h5py
-import z5py
+try:
+    import h5py
+    WITH_H5PY = True
+except ImportError:
+    WITH_H5PY = False
+try:
+    import zarr
+    WITH_ZARR = True
+except ImportError:
+    WITH_ZARR = False
+try:
+    import z5py
+    WITH_Z5PY = True
+except ImportError:
+    WITH_Z5PY = False
+
 import os
 import json
 from random import shuffle
@@ -154,11 +168,17 @@ def redistribute_offset_lists(gpu_list, save_folder):
 def load_ds(path, key):
     ext = os.path.splitext(path)[-1]
     if ext.lower() in ('.h5', '.hdf', '.hdf'):
+        assert WITH_H5PY
         with h5py.File(path, 'r') as f:
             ds = f[key]
     elif ext.lower() in ('.zr', '.zarr', '.n5'):
-        with z5py.File(path, 'r') as f:
+        assert WITH_Z5PY or WITH_ZARR
+        if WITH_ZARR:
+            f = zarr.open(path)
             ds = f[key]
+        elif WITH_Z5PY:
+            with z5py.File(path) as f:
+                ds = f[key]
     return ds
 
 

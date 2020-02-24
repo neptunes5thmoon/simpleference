@@ -1,7 +1,6 @@
 import warnings
 import numpy as np
 # try to import z5py
-import z5py
 try:
     import z5py
     WITH_Z5PY = True

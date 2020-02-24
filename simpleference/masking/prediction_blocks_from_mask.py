@@ -4,20 +4,38 @@ from math import ceil
 import json
 import numpy as np
 
-import h5py
-import z5py
+try:
+    import h5py
+    WITH_H5PY = True
+except ImportError:
+    WITH_H5PY = False
+try:
+    import zarr
+    WITH_ZARR = True
+except ImportError:
+    WITH_ZARR = False
+try:
+    import z5py
+    WITH_Z5PY = True
+except ImportError:
+    WITH_Z5PY = False
 
 
 def load_mask(path, key):
     ext = os.path.splitext(path)[-1]
     if ext.lower() in ('.h5', '.hdf', '.hdf'):
+        assert WITH_H5PY
         with h5py.File(path, 'r') as f:
-            mask = f[key][:]
+            ds = f[key][:]
     elif ext.lower() in ('.zr', '.zarr', '.n5'):
-        with z5py.File(path, 'r') as f:
-            mask = f[key][:]
-    return mask
-
+        assert WITH_Z5PY or WITH_ZARR
+        if WITH_ZARR:
+            f = zarr.open(path)
+            ds = f[key][:]
+        elif WITH_Z5PY:
+            with z5py.File(path) as f:
+                ds = f[key][:]
+    return ds
 
 def make_prediction_blocks(shape, output_block_shape, mask_file, output_file,
                            mask_key='data', roi_begin=None, roi_end=None):
