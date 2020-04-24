@@ -31,22 +31,22 @@ import logging
 
 def _offset_list(shape, output_shape):
     in_list = []
-    for z in range(0, shape[0], output_shape[0]):
-        for y in range(0, shape[1], output_shape[1]):
-            for x in range(0, shape[2], output_shape[2]):
-                in_list.append([z, y, x])
+    for z in np.arange(0, shape[0], output_shape[0]):
+        for y in np.arange(0, shape[1], output_shape[1]):
+            for x in np.arange(0, shape[2], output_shape[2]):
+                in_list.append([float(z), float(y), float(x)])
     return in_list
 
 
 # NOTE this will not cover the whole volume
 def _offset_list_with_shift(shape, output_shape, shift):
     in_list = []
-    for z in range(0, shape[0], output_shape[0]):
-        for y in range(0, shape[1], output_shape[1]):
-            for x in range(0, shape[2], output_shape[2]):
-                in_list.append([min(z + shift[0], shape[0]),
-                                min(y + shift[1], shape[1]),
-                                min(x + shift[2], shape[2])])
+    for z in np.arange(0, shape[0], output_shape[0]):
+        for y in np.arange(0, shape[1], output_shape[1]):
+            for x in np.arange(0, shape[2], output_shape[2]):
+                in_list.append([min(float(z) + shift[0], shape[0]),
+                                min(float(y) + shift[1], shape[1]),
+                                min(float(x) + shift[2], shape[2])])
     return in_list
 
 
@@ -192,6 +192,7 @@ def generate_list_for_mask(offset_file_json, output_shape_wc, path, mask_ds, n_c
         io = IoN5(path, mask_ds, voxel_size=mask_voxel_size, channel_order=None)
     else:
         io = IoZarr(path, mask_ds, voxel_size=mask_voxel_size, channel_order=None)
+
     @dask.delayed()
     def load_offset(offset_wc):
         return load_input_crop(io, offset_wc, (0,) * len(output_shape_wc), output_shape_wc, padding_mode="constant")[0]
